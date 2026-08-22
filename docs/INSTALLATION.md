@@ -1,6 +1,6 @@
 # Installation
 
-Requirements: Node.js 20+ and Git.
+Requirements: Node.js 22.5+ (for `node:sqlite`) and Git.
 
 ```bash
 git clone https://github.com/RikkyRS/Jarvis.git

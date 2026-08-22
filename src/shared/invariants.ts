@@ -16,7 +16,7 @@ export const MAX_RETRIES_PER_LOGICAL_OPERATION = 3;
 export const IDENTICAL_FINGERPRINT_LOOP_THRESHOLD = 3;
 export const CONTRACT_VERSION = 1;
 export const SCHEMA_VERSION = 1;
-export const JARVIS_VERSION = "0.5.0";
+export const JARVIS_VERSION = "0.5.1";
 
 export const IDENTITY = {
   name: "JARVIS",

@@ -1,7 +1,7 @@
 # JARVIS
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-green.svg)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.5-green.svg)](https://nodejs.org/)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)](.github/workflows/ci.yml)
 
 Harness pessoal de desenvolvimento com **autonomia controlada**, **evidence-first** e **agnosticismo** de IDE, provider, modelo e stack.
@@ -50,7 +50,7 @@ jarvis feche
 
 ## Requisitos
 
-- **Node.js 20+** (testado em 24.x; usa `node:sqlite` nativo)
+- **Node.js 22.5+** (usa `node:sqlite` nativo; testado em 22.x / 24.x)
 - **Git** (recomendado nos projetos alvo)
 - **Cursor** (opcional, mas é o adapter principal documentado)
 

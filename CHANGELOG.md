@@ -6,6 +6,13 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-22
+
+### Fixed
+
+- CI / runtime require **Node.js >= 22.5** (`node:sqlite` is unavailable on Node 20)
+- Vitest `testTimeout` raised to 30s for slower Windows e2e cycles
+
 ## [0.5.0] - 2026-08-22
 
 ### Added
@@ -68,7 +75,7 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ### Infrastructure
 
-- GitHub Actions CI (Node 20/22)
+- GitHub Actions CI (Node 22/24)
 - CONTRIBUTING, SECURITY, issue/PR templates, Dependabot
 
 [0.4.0]: https://github.com/RikkyRS/Jarvis/releases/tag/v0.4.0

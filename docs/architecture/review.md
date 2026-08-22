@@ -15,7 +15,7 @@ Properties verified in code and tests:
 - PROJECT memory dedup + GLOBAL recall/promotion
 - `brief` / `memorize` / local `serve` for token-efficient agent workflow
 - pause / resume / WAITING_EXTERNAL for manual gates
-- GitHub Actions CI (Node 20/22): typecheck, lint, build, test, doctor
+- GitHub Actions CI (Node 22/24): typecheck, lint, build, test, doctor
 - **MIT** license
 - No automatic push/merge/PR (invariant preserved)
 
