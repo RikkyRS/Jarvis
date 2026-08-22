@@ -22,11 +22,12 @@ Cursor / VS Code / Claude Code  →  invoca  →  jarvis CLI  →  Cycle + SQLit
 
 ```bash
 git clone https://github.com/RikkyRS/Jarvis.git
-cd jarvis
+cd Jarvis
 npm install && npm run ci && npm install -g .
 jarvis doctor
 
 cd /seu/projeto
+jarvis resumo
 jarvis planeje "implementar feature X"
 jarvis desenvolva
 jarvis feche
@@ -43,6 +44,7 @@ jarvis feche
 | Protege **mudanças humanas** pré-existentes | Substituir o modelo ou a IDE |
 | Roda **testes** quando há runner evidenciado | Inventar estado sem evidência |
 | Autoriza **envelope de execução** para o host | Descartar/stash/reset git automaticamente |
+| Exporta/importa **packs de evidência** para o time | Sync live de SQLite entre máquinas |
 
 ---
 
@@ -221,6 +223,9 @@ jarvis feche
 | `--commit` | No `close`, tenta commit local (nunca push) |
 | `--deep` | Context L2 estrutural (sem AST) |
 | `--session <id>` | Sessão para lock de Cycle |
+| `--path <file>` | Caminho do pack em `export` / `import` |
+| `--remote` | No `reconcile`, faz fetch do remote |
+| `--checks` | No `wait`, lê checks de PR via `gh` |
 | `--json` | Saída JSON (padrão já é JSON) |
 | `-h`, `--help` | Ajuda |
 
@@ -229,6 +234,8 @@ jarvis feche
 ## Fluxo de um Cycle
 
 ```text
+resumo
+    → brief compacto (tokens)
 planeje "objetivo"
     → PLANNING / READY (ou BLOCKED se CRITICAL)
 desenvolva [--approve se HIGH]
@@ -240,13 +247,25 @@ revise
     → gaps vs contrato (AC-*)
 security
     → re-scan + npm audit + risk acumulado
-pausar / retomar / aguardar
-    → PAUSED / WAITING_EXTERNAL para gates externos
+exportar
+    → pack de evidência para revisão do time
+reconciliar --remote / aguardar --checks
+    → remote avançou? CI do PR ok?
 feche [--commit --approve]
     → COMPLETED / ABANDONED; memória PROJECT dedup + promoção GLOBAL
 ```
 
-Saída típica do `plan`: `cycleId`, `context`, `impact`, `risk`, `security`, `contract`, `git_baseline`.
+### Fluxo em time (v0.5)
+
+```text
+Dev A: planeje → desenvolva → teste → exportar → push/PR (manual)
+Dev B: importar --path pack.json   # só leitura; não rouba o Cycle
+Dev A: aguardar --checks → feche
+```
+
+Detalhes: [`docs/TEAM.PLAYBOOK.md`](docs/TEAM.PLAYBOOK.md).
+
+Saída típica do `status` (schema `jarvis.status.v1`): session, lock, cycle, policy, git.
 
 Saída típica do `dev`: `EXECUTION_AUTHORIZED` ou `REQUIRES_APPROVAL` ou `BLOCKED`.
 
@@ -315,13 +334,15 @@ npm run jarvis -- doctor
 | Área do plano | Status |
 |---------------|--------|
 | Fases 0–21 (bootstrap → E2E) | Implementadas |
-| Fase 22 (revisão final escrita) | `docs/architecture/review.md` — sign-off v0.2 |
+| Fase 22 (revisão final escrita) | `docs/architecture/review.md` — sign-off v0.5 |
 | Identity / agnosticismo | Sim |
 | Cycle + lock + SQLite + event log | Sim |
 | Evidence-first + Risk + Permission | Sim |
 | Contract / AC-* | Sim |
 | Context L0/L1 | Sim |
 | Context L2 (AST / Tree-sitter) | Parcial (`--deep` estrutural) |
+| Policy / logs / reconcile / gh checks | Sim (v0.4) |
+| Status estável / who / export-import | Sim (v0.5) |
 | Adapters IDE (extensão) | Rules/skills Cursor; sem extensão VS Code |
 | Host implementa código | Por design |
 
@@ -372,6 +393,8 @@ curl "http://127.0.0.1:39217/brief?project=C:/seu/projeto"
 - `npm audit` só roda em projetos com `package.json`
 - Testes impactados dependem de convenção de nomes (`*.test.ts`, `test_*.py`, etc.)
 - Commit no `close` é local; push continua manual
+- `import` é evidência read-only — **não** sincroniza SQLite entre máquinas
+- Lock de Cycle é **por máquina/sessão**; `who` não é lock distribuído
 
 ---
 
