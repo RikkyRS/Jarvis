@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { IDENTITY, JARVIS_VERSION } from "../shared/invariants.js";
 import { nowIso, shortId } from "../shared/util.js";
 import type { CommandName } from "../shared/commands.js";
-import { initHarness, isInitialized, readConfig } from "../infrastructure/harness.js";
+import { initHarness, isInitialized } from "../infrastructure/harness.js";
 import { sqlitePath, Store, LATEST_SCHEMA_VERSION } from "../infrastructure/db.js";
 import { resolveSessionId } from "../infrastructure/session.js";
 import { loadProjectPolicy } from "../infrastructure/project-policy.js";
@@ -19,6 +19,7 @@ import { buildContract } from "../engines/contract/index.js";
 import { observe } from "../engines/observability/index.js";
 import { buildTimeline } from "../engines/observability/logs.js";
 import { fetchChecks, probeGh } from "../engines/git/gh.js";
+import { exportCyclePack, importCyclePack, writeActiveCycleMeta } from "../engines/cycle-pack/index.js";
 import { invokeTool } from "../tools/index.js";
 import { runPlanning } from "../capabilities/planning/index.js";
 import { runDevelopment } from "../capabilities/development/index.js";
@@ -52,6 +53,7 @@ export type CommandOptions = {
   remote?: boolean;
   checks?: boolean;
   limit?: number;
+  path?: string;
 };
 
 function refreshBrief(projectRoot: string, store: Store, cycle: Cycle | null) {
@@ -76,14 +78,29 @@ function conflict(requirement: string, architecture: string, reality: unknown, h
   return { status: "CONFLICT", requirement, architecture, reality, ...(human ? { human } : {}) };
 }
 
-function acquireLock(store: Store, cycleId: string, sessionId: string) {
+function acquireLock(store: Store, cycleId: string, sessionId: string, projectRoot?: string, cycleMeta?: { status: string; objective: string }) {
   const existing = store.getLock(cycleId);
   const now = Date.now();
   if (existing && Date.parse(existing.expires_at) > now && existing.session_id !== sessionId) {
-    return { ok: false as const, holder: existing.session_id };
+    return {
+      ok: false as const,
+      holder: existing.session_id,
+      expiresAt: existing.expires_at,
+      message: `Cycle locked by session ${existing.session_id} until ${existing.expires_at}. Use the same --session or wait for TTL.`,
+    };
   }
-  store.upsertLock(cycleId, sessionId, nowIso(), new Date(now + LOCK_TTL_MS).toISOString());
-  return { ok: true as const };
+  const expiresAt = new Date(now + LOCK_TTL_MS).toISOString();
+  store.upsertLock(cycleId, sessionId, nowIso(), expiresAt);
+  if (projectRoot && cycleMeta) {
+    writeActiveCycleMeta(projectRoot, {
+      cycleId,
+      status: cycleMeta.status,
+      objective: cycleMeta.objective,
+      sessionId,
+      lockExpiresAt: expiresAt,
+    });
+  }
+  return { ok: true as const, expiresAt };
 }
 
 function refreshRisk(cycle: Cycle, command: string, projectRoot: string, git: GitEngine): void {
@@ -170,16 +187,125 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
     const git = new GitEngine(projectRoot);
     if (command === "status") {
       const active = store.activeCycle();
+      const cycle = active ? fromRow(active) : null;
+      const lock = active ? store.getLock(active.id) : undefined;
+      const lockLive = lock && Date.parse(lock.expires_at) > Date.now();
+      const snap = git.snapshot();
       return {
         status: "READY",
+        schemaVersion: "jarvis.status.v1",
         projectRoot,
         harnessExists: true,
-        currentCycle: active?.id ?? null,
-        cycleStatus: active?.status ?? null,
-        config: readConfig(projectRoot),
+        sessionId,
+        policy: { source: policy.source, risk: policy.risk, git: policy.git, workflow: policy.workflow },
+        currentCycle: cycle
+          ? {
+              id: cycle.id,
+              number: cycle.number,
+              slug: cycle.slug,
+              objective: cycle.objective,
+              status: cycle.status,
+              riskLevel: cycle.payload.risk?.level ?? null,
+              riskAccumulated: cycle.payload.risk?.accumulated ?? null,
+            }
+          : null,
+        lock: lockLive
+          ? {
+              held: true,
+              sessionId: lock.session_id,
+              expiresAt: lock.expires_at,
+              isThisSession: lock.session_id === sessionId,
+            }
+          : { held: false },
+        git: {
+          repository: snap.repository,
+          branch: snap.branch ?? null,
+          head: snap.head ?? null,
+          detachedHead: Boolean(snap.detachedHead),
+          workingTreeClean: Boolean(snap.workingTreeClean),
+          statusShort: snap.statusShort ?? "",
+        },
         identity: IDENTITY,
-        git: git.run(["status", "--short", "--branch"]),
+        jarvisVersion: JARVIS_VERSION,
       };
+    }
+
+    if (command === "who") {
+      const active = store.activeCycle();
+      const lock = active ? store.getLock(active.id) : undefined;
+      const lockLive = lock && Date.parse(lock.expires_at) > Date.now();
+      return {
+        status: "WHO",
+        projectRoot,
+        sessionId,
+        cycleId: active?.id ?? null,
+        cycleStatus: active?.status ?? null,
+        objective: active?.objective ?? null,
+        lock: lockLive
+          ? {
+              holder: lock.session_id,
+              expiresAt: lock.expires_at,
+              isThisSession: lock.session_id === sessionId,
+              message:
+                lock.session_id === sessionId
+                  ? "This session holds the Cycle lock."
+                  : `Another session holds the lock: ${lock.session_id}`,
+            }
+          : { holder: null, message: active ? "No live lock (TTL expired or never acquired)." : "No active Cycle." },
+      };
+    }
+
+    if (command === "export") {
+      const active = store.activeCycle();
+      if (!active) return { status: "NO_ACTIVE_CYCLE", hint: 'Run: jarvis plan "objective"' };
+      const cycle = fromRow(active);
+      const result = exportCyclePack(projectRoot, cycle, options.path);
+      observe(store, "CYCLE_EXPORTED", { path: result.path, cycleId: cycle.id }, cycle.id);
+      return {
+        status: "EXPORTED",
+        path: result.path,
+        cycleId: cycle.id,
+        evidenceCount: result.pack.evidence.length,
+        checksum: result.pack.checksum,
+      };
+    }
+
+    if (command === "import") {
+      const packPath = options.path ?? options.objective?.trim();
+      if (!packPath) {
+        return { status: "PATH_REQUIRED", usage: 'jarvis import --path ".harness/exports/cycle-xxx.json"' };
+      }
+      try {
+        const result = importCyclePack(projectRoot, packPath);
+        recordMemory(
+          store,
+          "PROJECT",
+          "CYCLE_IMPORT",
+          {
+            cycleId: result.pack.cycle.id,
+            objective: result.pack.cycle.objective,
+            status: result.pack.cycle.status,
+            importPath: result.importPath,
+            checksum: result.pack.checksum,
+          },
+          "MEDIUM",
+          undefined,
+          projectRoot,
+        );
+        observe(store, "CYCLE_IMPORTED", { cycleId: result.pack.cycle.id, importPath: result.importPath });
+        return {
+          status: "IMPORTED",
+          importPath: result.importPath,
+          cycle: result.pack.cycle,
+          evidenceCount: result.pack.evidence.length,
+          note: "Import is read-only evidence. It does not take over the active Cycle lock.",
+        };
+      } catch (error) {
+        return {
+          status: "IMPORT_FAILED",
+          reason: error instanceof Error ? error.message : String(error),
+        };
+      }
     }
 
     if (command === "context") {
@@ -298,7 +424,7 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
           updated_at: cycle.updatedAt,
         });
         store.setCurrentCycle(cycle.id);
-        acquireLock(store, cycle.id, sessionId);
+        acquireLock(store, cycle.id, sessionId, projectRoot, { status: cycle.status, objective: cycle.objective });
         observe(store, "CYCLE_CREATED", { objective: cycle.objective }, cycle.id);
         store.addCheckpoint(shortId("cp"), cycle.id, "STRATEGIC", cycle);
         return {
@@ -326,12 +452,15 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
     const row = store.activeCycle();
     if (!row) return { status: "NO_ACTIVE_CYCLE", hint: 'Run: jarvis plan "objective"' };
     const cycle = reconcileCycle(store, fromRow(row));
-    const locked = acquireLock(store, cycle.id, sessionId);
+    const locked = acquireLock(store, cycle.id, sessionId, projectRoot, {
+      status: cycle.status,
+      objective: cycle.objective,
+    });
     if (!locked.ok) {
       return conflict(
         "control the open Cycle",
         "Only one session may control an open Cycle",
-        { holder: locked.holder, sessionId },
+        { holder: locked.holder, sessionId, expiresAt: locked.expiresAt, message: locked.message },
       );
     }
 

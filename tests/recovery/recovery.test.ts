@@ -18,8 +18,10 @@ describe("recovery", () => {
       store.appendEvent("evt-start", "ACTION_STARTED", { command: "dev" }, cycle.id);
       store.updateCycle(cycle.id, "EXECUTING", cycle.payload);
       store.close();
-      const status = runCommand("status", dir, {}) as { cycleStatus: string };
-      expect(status.cycleStatus).toBe("EXECUTING");
+      const status = runCommand("status", dir, {}) as {
+        currentCycle: { status: string } | null;
+      };
+      expect(status.currentCycle?.status).toBe("EXECUTING");
       runCommand("review", dir, {});
       const store2 = Store.open(dir);
       const again = store2.activeCycle();

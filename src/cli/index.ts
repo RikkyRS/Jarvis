@@ -26,6 +26,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       remote: { type: "string" },
       checks: { type: "boolean", default: false },
       limit: { type: "string" },
+      path: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -39,11 +40,17 @@ Commands:
 Natural language:
   jarvis resumo              # brief compacto (economiza tokens)
   jarvis memorizar "nota"
+  jarvis quem                # quem segura o lock
+  jarvis exportar            # pack de evidência do Cycle
+  jarvis importar --path x   # importa pack (read-only)
   jarvis servidor            # backend local 127.0.0.1:39217
 
 Options:
   --project <path>   target project (required inside the JARVIS runtime)
   --approve          explicit approval for HIGH-risk operations
+  --path <file>      path for export/import
+  --remote           fetch remote on reconcile
+  --checks           read PR checks via gh on wait
   --port <n>         port for serve (default 39217)
   --host <addr>      host for serve (default 127.0.0.1)
   -h, --help         show help
@@ -115,6 +122,7 @@ Options:
     ...(values.remote ? { remote: true } : {}),
     ...(values.checks ? { checks: true } : {}),
     ...(values.limit ? { limit: Number.parseInt(values.limit, 10) } : {}),
+    ...(values.path ? { path: values.path } : {}),
   });
   print(result);
   return 0;

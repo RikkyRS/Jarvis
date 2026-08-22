@@ -11,28 +11,26 @@ JARVIS stays **local-first**: `.harness/` per project, CLI on PATH, Cursor as ad
 - [x] MIT + CI + CONTRIBUTING + SECURITY
 - [x] pause / resume / wait
 
-## v0.4.x (current) — senior solo + Git awareness
+## v0.5.x (current) — team readiness (local + shared evidence)
+
+- [x] Stable `jarvis status` (`schemaVersion: jarvis.status.v1`)
+- [x] `jarvis who` — lock holder / session
+- [x] `jarvis export` / `import` — redacted Cycle evidence packs
+- [x] Advisory `active-cycle.meta.json`
+- [x] Team playbook (`docs/TEAM.PLAYBOOK.md`)
+- [x] Detached HEAD surfaced in status
+
+See [TEAM.v05.md](./TEAM.v05.md) and [TEAM.PLAYBOOK.md](./TEAM.PLAYBOOK.md).
+
+**Still no:** auto push/merge; live multi-machine SQLite sync.
+
+## v0.4.x — senior solo + Git awareness
 
 - [x] Project policy (`.jarvis.json` / `.jarvis.yml`)
 - [x] `jarvis logs` — event timeline
-- [x] `jarvis reconcile` / `--remote` — fetch + REMOTE_ADVANCED
-- [x] `jarvis wait --checks` via `gh` CLI
+- [x] `jarvis reconcile` / `--remote`
+- [x] `jarvis wait --checks` via `gh`
 - [x] Doctor reports schema, gh, policy source
-- [ ] Stable `jarvis status --json` for scripts
-- [ ] Detached HEAD / deleted upstream recovery tests
-
-**Still no:** push, merge, or automatic PR.
-
-## v0.5 — Team readiness (local + shared evidence)
-
-See [TEAM.v05.md](./TEAM.v05.md).
-
-- [ ] Cycle export / import packs (auditable, redacted)
-- [ ] Team playbook (PR + CI + shared `.jarvis.json`)
-- [ ] Multi-dev lock messaging / `who`
-- [ ] Optional thin sync later (self-hosted) — not required for first cut
-
-**Still no:** auto push/merge; Dropbox-shared SQLite.
 
 ## v0.6 — Engine depth
 

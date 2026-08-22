@@ -15,6 +15,9 @@ export const COMMANDS = [
   "serve",
   "logs",
   "reconcile",
+  "who",
+  "export",
+  "import",
   "close",
   "doctor",
 ] as const;

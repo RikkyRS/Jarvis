@@ -6,6 +6,17 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-22
+
+### Added
+
+- **Stable `jarvis status`** (`schemaVersion: jarvis.status.v1`) with session, lock, policy, git snapshot
+- **`jarvis who` / `quem`** — who holds the Cycle lock
+- **`jarvis export` / `import`** — redacted Cycle evidence packs for team review (import is read-only)
+- Advisory `.harness/active-cycle.meta.json` on lock acquire
+- Team playbook: `docs/TEAM.PLAYBOOK.md`
+- Detached HEAD surfaced in status
+
 ## [0.4.0] - 2026-08-22
 
 ### Added

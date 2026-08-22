@@ -17,6 +17,7 @@ export function runCommand(
     remote?: boolean;
     checks?: boolean;
     limit?: number;
+    path?: string;
   },
 ): unknown {
   return handle(command, projectRoot, options);

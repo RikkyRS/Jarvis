@@ -66,6 +66,12 @@ const ALIASES: Record<string, CommandName> = {
   historico: "logs",
   reconcile: "reconcile",
   reconciliar: "reconcile",
+  who: "who",
+  quem: "who",
+  export: "export",
+  exportar: "export",
+  import: "import",
+  importar: "import",
 };
 
 function normalize(token: string): string {

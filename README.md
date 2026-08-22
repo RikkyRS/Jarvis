@@ -167,6 +167,9 @@ O primeiro `planeje` **auto-inicializa** `.harness/` se o projeto ainda não tiv
 | `jarvis serve` | Backend **local** `127.0.0.1:39217` (opcional; estado continua em `.harness/`) |
 | `jarvis logs` | Timeline de eventos (debug/audit) |
 | `jarvis reconcile` | Reconcilia git local + fetch remoto opcional (`--remote`) |
+| `jarvis who` / `quem` | Quem segura o lock do Cycle |
+| `jarvis export` / `exportar` | Pack de evidência do Cycle (para o time) |
+| `jarvis import` / `importar --path` | Importa pack (somente leitura; não rouba o Cycle) |
 | `jarvis pause` | Pausa o Cycle ativo |
 | `jarvis wait --checks` | Lê checks de PR via `gh` CLI (quando disponível) |
 | `jarvis resume` | Retoma Cycle pausado |
@@ -190,6 +193,9 @@ O CLI entende verbos em PT — o token `jarvis` no meio da frase é ignorado:
 | `inicialize`, `inicie` | `init` |
 | `estado` | `status` |
 | `diagnóstico` | `doctor` |
+| `quem` | `who` |
+| `exportar` | `export` |
+| `importar` | `import` |
 | `pausar`, `pausa` | `pause` |
 | `retomar`, `continuar` | `resume` |
 | `aguardar`, `aguarde`, `esperar` | `wait` |
@@ -358,7 +364,7 @@ curl "http://127.0.0.1:39217/brief?project=C:/seu/projeto"
 
 ---
 
-## Limitações honestas (v0.4.0)
+## Limitações honestas (v0.5.0)
 
 - Licença **MIT** — uso livre; sem garantias
 - Não substitui o modelo: **você/Cursor** codam dentro do envelope
@@ -375,6 +381,7 @@ curl "http://127.0.0.1:39217/brief?project=C:/seu/projeto"
 
 - [Visão geral (PT)](docs/OVERVIEW.pt-BR.md) — o que foi feito, de ponta a ponta
 - [Team v0.5 plan](docs/TEAM.v05.md)
+- [Team playbook](docs/TEAM.PLAYBOOK.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -392,8 +399,8 @@ Repositório: [github.com/RikkyRS/Jarvis](https://github.com/RikkyRS/Jarvis)
 ```powershell
 git remote add origin https://github.com/RikkyRS/Jarvis.git
 git push -u origin main
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 ---
