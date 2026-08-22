@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggestion aligned with evidence-first / local runtime scope
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        JARVIS governs Cycles locally. Automatic push/merge/PR is out of scope by design.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or gap
+      description: What were you trying to do and what was missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Desired behavior (command, JSON output, engine)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Likely area
+      options:
+        - CLI / natural language
+        - Cycle / lock / recovery
+        - Context / Impact / Risk
+        - Git (local only)
+        - Memory / brief
+        - Test / Security
+        - Cursor / adapters
+        - Docs / infra
+    validations:
+      required: true

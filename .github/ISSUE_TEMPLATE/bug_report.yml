@@ -1,0 +1,61 @@
+name: Bug report
+description: Something broke or behaved unexpectedly
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Local state lives in `.harness/` (gitignored). Include CLI JSON output when possible.
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. jarvis init
+        2. jarvis plan "..."
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: JARVIS version
+      placeholder: "0.3.0 or output of jarvis doctor"
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js
+      placeholder: "v20.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true

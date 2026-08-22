@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.harness/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+_incoming_cli/
+_incoming_impact/
+.DS_Store
+*.log

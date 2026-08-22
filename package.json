@@ -1,0 +1,59 @@
+{
+  "name": "jarvis",
+  "version": "0.3.0",
+  "description": "Evidence-first local development harness — Cycle, risk gates, and memory for AI-assisted coding. Cursor/IDE agnostic.",
+  "type": "module",
+  "bin": {
+    "jarvis": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "ci": "npm run typecheck && npm run lint && npm test && npm run build",
+    "format": "prettier --write src tests docs README.md",
+    "prepublishOnly": "npm run build",
+    "jarvis": "tsx src/cli/index.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "developer-tools",
+    "evidence-first",
+    "cursor",
+    "cli",
+    "typescript",
+    "harness"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RikkyRS/Jarvis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RikkyRS/Jarvis/issues"
+  },
+  "homepage": "https://github.com/RikkyRS/Jarvis#readme",
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.40.0",
+    "vitest": "^3.2.4"
+  }
+}
