@@ -6,6 +6,17 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-22
+
+### Added
+
+- **Project policy** via `.jarvis.json` / `.jarvis.yml` (risk thresholds, git remote, workflow gates)
+- **`jarvis logs`** — event timeline from SQLite for debugging
+- **`jarvis reconcile`** — local + optional remote fetch vs Cycle baseline (`REMOTE_ADVANCED`)
+- **`jarvis wait --checks`** — reads GitHub PR checks via `gh` CLI when available
+- **`jarvis doctor`** — reports schema version, `gh` probe, policy source
+- Example policy: `docs/examples/jarvis.policy.example.json`
+
 ## [0.3.0] - 2026-08-22
 
 ### Added
@@ -49,5 +60,6 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 - GitHub Actions CI (Node 20/22)
 - CONTRIBUTING, SECURITY, issue/PR templates, Dependabot
 
+[0.4.0]: https://github.com/RikkyRS/Jarvis/releases/tag/v0.4.0
 [0.3.0]: https://github.com/RikkyRS/Jarvis/releases/tag/v0.3.0
 [0.2.0]: https://github.com/RikkyRS/Jarvis/releases/tag/v0.2.0

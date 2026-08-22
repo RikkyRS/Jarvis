@@ -1,8 +1,8 @@
 # Roadmap
 
-JARVIS stays **local-first**: `.harness/` per project, CLI on PATH, Cursor as adapter. Nothing here requires cloud.
+JARVIS stays **local-first**: `.harness/` per project, CLI on PATH, Cursor as adapter. Nothing here requires cloud for core use.
 
-## v0.3.x (current) — publishable
+## v0.3.x — publishable local harness
 
 - [x] Cycle + SQLite + lock + recovery
 - [x] Risk / Impact / Security / Memory / Test engines
@@ -11,20 +11,28 @@ JARVIS stays **local-first**: `.harness/` per project, CLI on PATH, Cursor as ad
 - [x] MIT + CI + CONTRIBUTING + SECURITY
 - [x] pause / resume / wait
 
-## v0.4 — Git awareness (local + read-only remote)
+## v0.4.x (current) — senior solo + Git awareness
 
-- [ ] `jarvis reconcile --remote` — fetch + diff vs Cycle baseline
-- [ ] Detect "remote advanced" / deleted branch / detached HEAD in tests
-- [ ] Richer `git status` evidence in Cycle payload
+- [x] Project policy (`.jarvis.json` / `.jarvis.yml`)
+- [x] `jarvis logs` — event timeline
+- [x] `jarvis reconcile` / `--remote` — fetch + REMOTE_ADVANCED
+- [x] `jarvis wait --checks` via `gh` CLI
+- [x] Doctor reports schema, gh, policy source
 - [ ] Stable `jarvis status --json` for scripts
+- [ ] Detached HEAD / deleted upstream recovery tests
 
 **Still no:** push, merge, or automatic PR.
 
-## v0.5 — GitHub as optional external gate
+## v0.5 — Team readiness (local + shared evidence)
 
-- [ ] `gh` CLI integration: PR status, checks, review state
-- [ ] `jarvis wait` reads real checks when `GH_TOKEN` + remote exist
-- [ ] Document flow: plan → dev → local commit → manual push → wait CI → close
+See [TEAM.v05.md](./TEAM.v05.md).
+
+- [ ] Cycle export / import packs (auditable, redacted)
+- [ ] Team playbook (PR + CI + shared `.jarvis.json`)
+- [ ] Multi-dev lock messaging / `who`
+- [ ] Optional thin sync later (self-hosted) — not required for first cut
+
+**Still no:** auto push/merge; Dropbox-shared SQLite.
 
 ## v0.6 — Engine depth
 
@@ -35,13 +43,13 @@ JARVIS stays **local-first**: `.harness/` per project, CLI on PATH, Cursor as ad
 
 ## v1.0 — maturity criteria
 
-- [ ] 100% Phase 22 acceptance criteria verified in CI
-- [ ] npm publish (`npm i -g jarvis`) or GitHub Releases with binary
+- [ ] Phase 22 acceptance criteria verified in CI
+- [ ] npm publish or GitHub Releases binary
 - [ ] VS Code/Cursor extension (optional; rules/skills remain valid)
 - [ ] Changelog + migration guide between minors
 
 ## Explicitly out of v1
 
-- Shared Cycle state for teams
 - Automatic push/merge/force
 - Replacing the model or IDE
+- Forcing cloud accounts to use the CLI

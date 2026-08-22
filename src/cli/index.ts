@@ -23,6 +23,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       commit: { type: "boolean", default: false },
       port: { type: "string" },
       host: { type: "string" },
+      remote: { type: "string" },
+      checks: { type: "boolean", default: false },
+      limit: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -109,6 +112,9 @@ Options:
     ...(values.session ? { session: values.session } : {}),
     ...(values.deep ? { deep: true } : {}),
     ...(values.commit ? { commit: true } : {}),
+    ...(values.remote ? { remote: true } : {}),
+    ...(values.checks ? { checks: true } : {}),
+    ...(values.limit ? { limit: Number.parseInt(values.limit, 10) } : {}),
   });
   print(result);
   return 0;

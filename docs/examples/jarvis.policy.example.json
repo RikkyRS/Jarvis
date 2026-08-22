@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "risk": {
+    "requireApprovalFrom": "HIGH",
+    "blockCritical": true
+  },
+  "git": {
+    "remote": "origin",
+    "fetchOnReconcile": true
+  },
+  "protectedPaths": [".env", ".env.local", "credentials.json", "secrets/"],
+  "workflow": {
+    "requireTestBeforeClose": false
+  }
+}

@@ -61,6 +61,11 @@ const ALIASES: Record<string, CommandName> = {
   lembrar: "memorize",
   serve: "serve",
   servidor: "serve",
+  logs: "logs",
+  log: "logs",
+  historico: "logs",
+  reconcile: "reconcile",
+  reconciliar: "reconcile",
 };
 
 function normalize(token: string): string {

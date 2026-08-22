@@ -1,6 +1,6 @@
 {
   "name": "jarvis",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Evidence-first local development harness — Cycle, risk gates, and memory for AI-assisted coding. Cursor/IDE agnostic.",
   "type": "module",
   "bin": {

@@ -20,6 +20,14 @@ export type GitReconciliation = {
   baseline?: GitSnapshot;
   current: GitSnapshot;
   reason?: string;
+  remote?: {
+    status: "IN_SYNC" | "REMOTE_ADVANCED" | "UNKNOWN" | "SKIPPED";
+    fetched: boolean;
+    remoteName?: string;
+    remoteHead?: string | null;
+    localHead?: string | null;
+    detail?: string;
+  };
 };
 
 export class GitEngine {
@@ -68,7 +76,7 @@ export class GitEngine {
     };
   }
 
-  reconcile(baseline: GitSnapshot | undefined): GitReconciliation {
+  reconcile(baseline: GitSnapshot | undefined, options?: { remote?: string; fetch?: boolean }): GitReconciliation {
     const current = this.snapshot();
     if (!baseline) return { status: "NO_BASELINE", changes: [], current };
     if (!baseline.repository || !current.repository) {
@@ -79,7 +87,62 @@ export class GitEngine {
     if (baseline.treeHash !== current.treeHash) changes.push("TREE_CHANGED");
     if (baseline.branch !== current.branch) changes.push("BRANCH_CHANGED");
     if (JSON.stringify(baseline.branches) !== JSON.stringify(current.branches)) changes.push("BRANCH_LIST_CHANGED");
-    return { status: changes.length ? "DIVERGED" : "IN_SYNC", changes, baseline, current };
+
+    let remote: GitReconciliation["remote"];
+    if (options?.fetch !== false && options?.remote) {
+      const fetched = this.run(["fetch", options.remote, "--quiet"], 60_000);
+      const branch = current.branch ?? baseline.branch;
+      const localHead = current.head ?? null;
+      let remoteHead: string | null = null;
+      if (branch) {
+        remoteHead = this.value(["rev-parse", `${options.remote}/${branch}`]);
+      }
+      if (fetched.returncode !== 0) {
+        remote = {
+          status: "UNKNOWN",
+          fetched: false,
+          remoteName: options.remote,
+          localHead,
+          remoteHead,
+          detail: fetched.stderr || fetched.stdout || "fetch failed",
+        };
+      } else if (!branch || !remoteHead) {
+        remote = {
+          status: "SKIPPED",
+          fetched: true,
+          remoteName: options.remote,
+          localHead,
+          remoteHead,
+          detail: "no upstream branch to compare",
+        };
+      } else if (remoteHead !== localHead) {
+        changes.push("REMOTE_ADVANCED");
+        remote = {
+          status: "REMOTE_ADVANCED",
+          fetched: true,
+          remoteName: options.remote,
+          localHead,
+          remoteHead,
+          detail: `${options.remote}/${branch} differs from local HEAD`,
+        };
+      } else {
+        remote = {
+          status: "IN_SYNC",
+          fetched: true,
+          remoteName: options.remote,
+          localHead,
+          remoteHead,
+        };
+      }
+    }
+
+    return {
+      status: changes.length ? "DIVERGED" : "IN_SYNC",
+      changes,
+      baseline,
+      current,
+      ...(remote ? { remote } : {}),
+    };
   }
 
   parseStatus(statusShort = ""): Array<{ code: string; path: string }> {

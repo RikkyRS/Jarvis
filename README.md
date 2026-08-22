@@ -165,7 +165,10 @@ O primeiro `planeje` **auto-inicializa** `.harness/` se o projeto ainda não tiv
 | `jarvis brief` / `jarvis resumo` | **JSON compacto** — leia isto antes de explorar o repo (economiza tokens) |
 | `jarvis memorize "…"` / `memorizar` | Grava nota do host em memória PROJECT |
 | `jarvis serve` | Backend **local** `127.0.0.1:39217` (opcional; estado continua em `.harness/`) |
+| `jarvis logs` | Timeline de eventos (debug/audit) |
+| `jarvis reconcile` | Reconcilia git local + fetch remoto opcional (`--remote`) |
 | `jarvis pause` | Pausa o Cycle ativo |
+| `jarvis wait --checks` | Lê checks de PR via `gh` CLI (quando disponível) |
 | `jarvis resume` | Retoma Cycle pausado |
 | `jarvis wait "<motivo>"` | Marca `WAITING_EXTERNAL` (PR/CI/gate manual) |
 | `jarvis close` | Fecha Cycle, dedup memória PROJECT + promoção GLOBAL |
@@ -318,6 +321,20 @@ npm run jarvis -- doctor
 
 ---
 
+## Policy por projeto (`.jarvis.json`)
+
+Copie [`docs/examples/jarvis.policy.example.json`](docs/examples/jarvis.policy.example.json) para a raiz do projeto alvo.
+
+```json
+{
+  "risk": { "requireApprovalFrom": "HIGH", "blockCritical": true },
+  "git": { "remote": "origin", "fetchOnReconcile": true },
+  "workflow": { "requireTestBeforeClose": false }
+}
+```
+
+---
+
 ## Memória e tokens (Cursor)
 
 O agente gasta tokens quando re-explora o repo a cada turno. Fluxo recomendado:
@@ -341,7 +358,7 @@ curl "http://127.0.0.1:39217/brief?project=C:/seu/projeto"
 
 ---
 
-## Limitações honestas (v0.3.0)
+## Limitações honestas (v0.4.0)
 
 - Licença **MIT** — uso livre; sem garantias
 - Não substitui o modelo: **você/Cursor** codam dentro do envelope
@@ -354,8 +371,10 @@ curl "http://127.0.0.1:39217/brief?project=C:/seu/projeto"
 
 ## Documentação extra
 
-> Arquivos abaixo em **inglês**, exceto este README.
+> Arquivos abaixo em **inglês**, exceto este README e a visão geral em PT.
 
+- [Visão geral (PT)](docs/OVERVIEW.pt-BR.md) — o que foi feito, de ponta a ponta
+- [Team v0.5 plan](docs/TEAM.v05.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -373,8 +392,8 @@ Repositório: [github.com/RikkyRS/Jarvis](https://github.com/RikkyRS/Jarvis)
 ```powershell
 git remote add origin https://github.com/RikkyRS/Jarvis.git
 git push -u origin main
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 ---

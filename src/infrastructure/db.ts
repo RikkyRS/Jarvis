@@ -202,6 +202,19 @@ export class Store {
       .prepare("SELECT type, payload, created_at FROM events WHERE cycle_id = ? ORDER BY created_at DESC LIMIT ?")
       .all(cycleId, limit) as Array<{ type: string; payload: string; created_at: string }>;
   }
+
+  listEvents(cycleId?: string, limit = 50): Array<{ type: string; payload: string; created_at: string; cycle_id: string | null }> {
+    if (cycleId) {
+      return this.db
+        .prepare(
+          "SELECT type, payload, created_at, cycle_id FROM events WHERE cycle_id = ? ORDER BY created_at DESC LIMIT ?",
+        )
+        .all(cycleId, limit) as Array<{ type: string; payload: string; created_at: string; cycle_id: string | null }>;
+    }
+    return this.db
+      .prepare("SELECT type, payload, created_at, cycle_id FROM events ORDER BY created_at DESC LIMIT ?")
+      .all(limit) as Array<{ type: string; payload: string; created_at: string; cycle_id: string | null }>;
+  }
 }
 
 export function sqlitePath(projectRoot: string): string {

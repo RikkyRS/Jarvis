@@ -14,6 +14,9 @@ export function runCommand(
     commit?: boolean;
     port?: number;
     host?: string;
+    remote?: boolean;
+    checks?: boolean;
+    limit?: number;
   },
 ): unknown {
   return handle(command, projectRoot, options);

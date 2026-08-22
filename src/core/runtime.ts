@@ -3,8 +3,10 @@ import { IDENTITY, JARVIS_VERSION } from "../shared/invariants.js";
 import { nowIso, shortId } from "../shared/util.js";
 import type { CommandName } from "../shared/commands.js";
 import { initHarness, isInitialized, readConfig } from "../infrastructure/harness.js";
-import { sqlitePath, Store } from "../infrastructure/db.js";
+import { sqlitePath, Store, LATEST_SCHEMA_VERSION } from "../infrastructure/db.js";
 import { resolveSessionId } from "../infrastructure/session.js";
+import { loadProjectPolicy } from "../infrastructure/project-policy.js";
+import { briefCachePath } from "../infrastructure/brief-cache.js";
 import { GitEngine } from "../engines/git/index.js";
 import { discoverContext } from "../engines/context/index.js";
 import { analyzeImpact } from "../engines/impact/index.js";
@@ -15,6 +17,8 @@ import { recallMemory, recordMemory, promoteToGlobal } from "../engines/memory/i
 import { runTests } from "../engines/test/index.js";
 import { buildContract } from "../engines/contract/index.js";
 import { observe } from "../engines/observability/index.js";
+import { buildTimeline } from "../engines/observability/logs.js";
+import { fetchChecks, probeGh } from "../engines/git/gh.js";
 import { invokeTool } from "../tools/index.js";
 import { runPlanning } from "../capabilities/planning/index.js";
 import { runDevelopment } from "../capabilities/development/index.js";
@@ -45,6 +49,9 @@ export type CommandOptions = {
   commit?: boolean;
   port?: number;
   host?: string;
+  remote?: boolean;
+  checks?: boolean;
+  limit?: number;
 };
 
 function refreshBrief(projectRoot: string, store: Store, cycle: Cycle | null) {
@@ -119,12 +126,17 @@ function orchGuard(store: Store, cycle: Cycle, command: string) {
 
 export function handle(command: CommandName, projectRoot: string, options: CommandOptions = {}): unknown {
   if (command === "doctor") {
+    const policy = isInitialized(projectRoot) ? loadProjectPolicy(projectRoot) : null;
     return {
       status: "OK",
       identity: IDENTITY,
       runtime: { node: process.version, platform: process.platform, jarvis: JARVIS_VERSION },
       initialized: isInitialized(projectRoot),
       sqlite: isInitialized(projectRoot) ? existsSync(sqlitePath(projectRoot)) : false,
+      schemaVersion: LATEST_SCHEMA_VERSION,
+      gh: probeGh(),
+      policy: policy ? { source: policy.source, risk: policy.risk, git: policy.git } : null,
+      briefCache: isInitialized(projectRoot) ? existsSync(briefCachePath(projectRoot)) : false,
       currentPhase: { completed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], next: 22 },
     };
   }
@@ -153,6 +165,7 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
 
   const store = Store.open(projectRoot);
   try {
+    const policy = loadProjectPolicy(projectRoot);
     const sessionId = resolveSessionId(projectRoot, options.session);
     const git = new GitEngine(projectRoot);
     if (command === "status") {
@@ -171,6 +184,32 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
 
     if (command === "context") {
       return discoverContext(projectRoot, options.deep === true);
+    }
+
+    if (command === "logs") {
+      const active = store.activeCycle();
+      return buildTimeline(store, { ...(active?.id ? { cycleId: active.id } : {}), limit: options.limit ?? 50 });
+    }
+
+    if (command === "reconcile") {
+      const active = store.activeCycle();
+      const baseline = active ? fromRow(active).payload.gitBaseline : undefined;
+      const reconciliation = git.reconcile(baseline, {
+        remote: policy.git.remote,
+        fetch: options.remote ?? policy.git.fetchOnReconcile,
+      });
+      if (active) {
+        const cycle = reconcileCycle(store, fromRow(active));
+        cycle.payload.gitReconciliation = reconciliation;
+        persist(store, cycle);
+        observe(store, "GIT_RECONCILE", { changes: reconciliation.changes, remote: reconciliation.remote }, cycle.id);
+      }
+      return {
+        status: "RECONCILED",
+        policySource: policy.source,
+        reconciliation,
+        cycleId: active?.id ?? null,
+      };
     }
 
     if (command === "brief") {
@@ -300,11 +339,14 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
     if (guarded.blocked) return guarded.blocked;
 
     if (command === "dev") {
-      cycle.payload.gitReconciliation = git.reconcile(cycle.payload.gitBaseline);
+      cycle.payload.gitReconciliation = git.reconcile(cycle.payload.gitBaseline, {
+        remote: policy.git.remote,
+        fetch: policy.git.fetchOnReconcile,
+      });
       addEvidence(cycle, "GIT_RECONCILIATION", cycle.payload.gitReconciliation, "git-engine");
       const humanPaths = (cycle.payload.impact?.layers.HUMAN ?? []).map((item: { path: string }) => item.path);
       const approved = Boolean(options.approve) || cycle.payload.approvals.length > 0;
-      const permission = decidePermission(cycle.payload.risk?.level ?? "LOW", approved);
+      const permission = decidePermission(cycle.payload.risk?.level ?? "LOW", approved, policy.risk);
       if (options.approve && permission.decision === "ALLOW" && cycle.payload.risk?.level === "HIGH") {
         cycle.payload.approvals.push({ at: nowIso(), command: "dev" });
         store.addApproval(shortId("apq"), cycle.id, "dev");
@@ -393,13 +435,47 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
     if (command === "wait") {
       const reason = options.objective?.trim() || "external dependency (PR/CI/manual gate)";
       cycle.payload.waitReason = reason;
+      let checksReport = null;
+      if (options.checks) {
+        checksReport = fetchChecks(projectRoot);
+        addEvidence(cycle, "CI_CHECKS", checksReport, "gh-cli", checksReport.status === "AVAILABLE" ? "KNOWN" : "UNKNOWN");
+        if (checksReport.status === "AVAILABLE" && checksReport.allPassed) {
+          transition(cycle, "REVIEWING");
+          persist(store, cycle);
+          observe(store, "CI_CHECKS_PASSED", { count: checksReport.checks.length }, cycle.id);
+          return {
+            status: "CHECKS_PASSED",
+            cycleId: cycle.id,
+            cycleStatus: cycle.status,
+            checks: checksReport,
+            reason,
+          };
+        }
+      }
       transition(cycle, "WAITING_EXTERNAL");
       persist(store, cycle);
-      observe(store, "CYCLE_WAITING", { reason }, cycle.id);
-      return { status: "WAITING_EXTERNAL", cycleId: cycle.id, cycleStatus: cycle.status, reason };
+      observe(store, "CYCLE_WAITING", { reason, checks: checksReport?.status ?? "skipped" }, cycle.id);
+      return {
+        status: "WAITING_EXTERNAL",
+        cycleId: cycle.id,
+        cycleStatus: cycle.status,
+        reason,
+        ...(checksReport ? { checks: checksReport } : {}),
+      };
     }
 
     if (command === "close") {
+      if (policy.workflow.requireTestBeforeClose) {
+        const testResult = cycle.payload.test as { status?: string; ran?: boolean } | undefined;
+        if (!testResult?.ran || testResult.status !== "PASSED") {
+          return {
+            status: "BLOCKED",
+            reason: "Project policy requires a passing test run before close.",
+            cycleId: cycle.id,
+            policy: policy.source,
+          };
+        }
+      }
       runCycleCapability(cycle.payload.execution ? "close" : "abandon");
       if (cycle.payload.risk?.level === "CRITICAL") {
         transition(cycle, "BLOCKED");

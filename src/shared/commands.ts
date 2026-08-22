@@ -13,6 +13,8 @@ export const COMMANDS = [
   "brief",
   "memorize",
   "serve",
+  "logs",
+  "reconcile",
   "close",
   "doctor",
 ] as const;
