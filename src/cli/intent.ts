@@ -72,6 +72,9 @@ const ALIASES: Record<string, CommandName> = {
   exportar: "export",
   import: "import",
   importar: "import",
+  share: "share",
+  compartilhar: "share",
+  linkedin: "share",
 };
 
 function normalize(token: string): string {

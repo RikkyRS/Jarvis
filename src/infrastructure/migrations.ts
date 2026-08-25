@@ -95,6 +95,27 @@ CREATE TABLE IF NOT EXISTS current_state (
       db.exec("CREATE INDEX IF NOT EXISTS idx_memory_level ON memory(level);");
     },
   },
+  {
+    version: 3,
+    up: (db) => {
+      db.exec(`
+CREATE TABLE IF NOT EXISTS shares (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  cycle_id TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  status TEXT NOT NULL,
+  draft_path TEXT,
+  draft_text TEXT NOT NULL,
+  posted_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(project_id, cycle_id, channel)
+);
+CREATE INDEX IF NOT EXISTS idx_shares_project ON shares(project_id);
+CREATE INDEX IF NOT EXISTS idx_shares_cycle ON shares(cycle_id);
+`);
+    },
+  },
 ];
 
 export function runMigrations(db: DatabaseSync): number {

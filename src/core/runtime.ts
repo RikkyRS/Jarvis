@@ -20,6 +20,25 @@ import { observe } from "../engines/observability/index.js";
 import { buildTimeline } from "../engines/observability/logs.js";
 import { fetchChecks, probeGh } from "../engines/git/gh.js";
 import { exportCyclePack, importCyclePack, writeActiveCycleMeta } from "../engines/cycle-pack/index.js";
+import {
+  SHARE_CHANNEL_LINKEDIN,
+  createLinkedInDraft,
+  newShareId,
+  parseShareAction,
+  tryCopyToClipboard,
+} from "../engines/share/index.js";
+import {
+  draftGithubWithClipboard,
+  fetchGithubRepo,
+  listGithubRepos,
+  normalizeRepoKey,
+} from "../engines/share/github.js";
+import {
+  getGlobalShare,
+  listGlobalShares,
+  markGlobalSharePosted,
+  upsertGlobalShare,
+} from "../infrastructure/global-shares.js";
 import { invokeTool } from "../tools/index.js";
 import { runPlanning } from "../capabilities/planning/index.js";
 import { runDevelopment } from "../capabilities/development/index.js";
@@ -306,6 +325,266 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
           reason: error instanceof Error ? error.message : String(error),
         };
       }
+    }
+
+    if (command === "share") {
+      const parsed = parseShareAction(options.objective);
+      const channel = SHARE_CHANNEL_LINKEDIN;
+
+      if (parsed.action === "github") {
+        const listed = listGithubRepos(options.limit ?? 30);
+        if (listed.status !== "AVAILABLE") {
+          return {
+            status: "GITHUB_UNAVAILABLE",
+            detail: listed.detail,
+            hint: "Instale e autentique o GitHub CLI: gh auth login",
+          };
+        }
+        const shares = listGlobalShares(channel, 200).filter((item) => item.subjectKind === "github");
+        const byRepo = new Map(shares.map((item) => [item.subjectKey.toLowerCase(), item]));
+        const items = listed.repos.map((repo) => {
+          const share = byRepo.get(repo.nameWithOwner.toLowerCase());
+          return {
+            repo: repo.nameWithOwner,
+            description: repo.description,
+            url: repo.url,
+            updatedAt: repo.updatedAt,
+            isPrivate: repo.isPrivate,
+            share: share
+              ? { status: share.status, draftPath: share.draftPath, postedAt: share.postedAt }
+              : { status: "NOT_SHARED" as const },
+          };
+        });
+        const unshared = items.filter((item) => item.share.status === "NOT_SHARED");
+        return {
+          status: "SHARE_GITHUB_STATUS",
+          channel,
+          unsharedRepos: unshared.length,
+          items,
+          unshared: unshared.map((item) => item.repo),
+          hint:
+            unshared.length > 0
+              ? `jarvis share draft ${unshared[0]?.repo}  # rascunho LinkedIn sem precisar de Cycle`
+              : "Todos os repos listados já têm share DRAFT/POSTED no registro global (~/.jarvis/shares.json).",
+          note: "Usa `gh repo list` da sua conta. Não exige Cycle do JARVIS.",
+        };
+      }
+
+      if (parsed.action === "status") {
+        const completed = store.listCompletedCycles(options.limit ?? 30);
+        const shares = store.listShares(100);
+        const byCycle = new Map(shares.filter((s) => s.channel === channel).map((s) => [s.cycle_id, s]));
+        const items = completed.map((row) => {
+          const share = byCycle.get(row.id);
+          return {
+            cycleId: row.id,
+            number: row.number,
+            objective: row.objective,
+            status: row.status,
+            share: share
+              ? { status: share.status, draftPath: share.draft_path, postedAt: share.posted_at }
+              : { status: "NOT_SHARED" as const },
+          };
+        });
+        const unshared = items.filter((item) => item.share.status === "NOT_SHARED").length;
+        return {
+          status: "SHARE_STATUS",
+          channel,
+          unsharedCompleted: unshared,
+          items,
+          hint: unshared
+            ? 'jarvis share draft  # último Cycle COMPLETED'
+            : "Nenhum Cycle COMPLETED pendente. Para repos do GitHub: jarvis share github",
+        };
+      }
+
+      if (parsed.action === "done") {
+        if (parsed.repoKey) {
+          const repoKey = normalizeRepoKey(parsed.repoKey);
+          if (!repoKey) {
+            return { status: "INVALID_REPO", usage: "jarvis share done owner/repo" };
+          }
+          const marked = markGlobalSharePosted("github", repoKey, channel);
+          if (!marked) {
+            return {
+              status: "NO_DRAFT",
+              repo: repoKey,
+              hint: `jarvis share draft ${repoKey}`,
+            };
+          }
+          observe(store, "SHARE_POSTED", { subjectKind: "github", subjectKey: repoKey, channel });
+          return {
+            status: "SHARE_MARKED_POSTED",
+            subjectKind: "github",
+            repo: repoKey,
+            channel,
+            postedAt: marked.postedAt,
+            message: "Registrado em ~/.jarvis/shares.json. JARVIS não publica no LinkedIn por você.",
+          };
+        }
+
+        let cycleId = parsed.cycleId;
+        if (!cycleId) {
+          const latest = store.listShares(1).find((s) => s.channel === channel && s.status === "DRAFT");
+          cycleId = latest?.cycle_id;
+        }
+        if (!cycleId) {
+          return {
+            status: "CYCLE_REQUIRED",
+            usage: "jarvis share done <cycleId|owner/repo>",
+            hint: "Gere um draft antes: jarvis share draft  |  jarvis share draft owner/repo",
+          };
+        }
+        const existing = store.getShare(cycleId, channel);
+        if (!existing) {
+          return { status: "NO_DRAFT", cycleId, hint: "jarvis share draft " + cycleId };
+        }
+        const postedAt = nowIso();
+        store.markSharePosted(cycleId, channel, postedAt);
+        observe(store, "SHARE_POSTED", { cycleId, channel }, cycleId);
+        recordMemory(
+          store,
+          "PROJECT",
+          "SHARE_POSTED",
+          { cycleId, channel, postedAt },
+          "MEDIUM",
+          cycleId,
+          projectRoot,
+        );
+        return {
+          status: "SHARE_MARKED_POSTED",
+          subjectKind: "cycle",
+          cycleId,
+          channel,
+          postedAt,
+          message: "Registrado localmente. JARVIS não publica no LinkedIn por você.",
+        };
+      }
+
+      // draft — GitHub repo (sem Cycle)
+      if (parsed.repoKey) {
+        const repoKey = normalizeRepoKey(parsed.repoKey);
+        if (!repoKey) {
+          return { status: "INVALID_REPO", usage: "jarvis share draft owner/repo" };
+        }
+        const fetched = fetchGithubRepo(repoKey);
+        if (fetched.status !== "AVAILABLE" || !fetched.repo) {
+          return {
+            status: "GITHUB_UNAVAILABLE",
+            repo: repoKey,
+            detail: fetched.detail,
+            hint: "Confira `gh auth status` e se o repo existe na sua conta.",
+          };
+        }
+        const draft = draftGithubWithClipboard(
+          fetched.repo,
+          options.path ? { path: options.path } : undefined,
+        );
+        const existing = getGlobalShare("github", draft.repoKey, channel);
+        upsertGlobalShare({
+          subjectKind: "github",
+          subjectKey: draft.repoKey,
+          channel,
+          status: existing?.status === "POSTED" ? "POSTED" : "DRAFT",
+          draftPath: draft.path,
+          draftText: draft.text,
+          postedAt: existing?.postedAt ?? null,
+          meta: { repoUrl: draft.repoUrl, projectName: draft.projectName },
+        });
+        observe(store, "SHARE_DRAFT", {
+          subjectKind: "github",
+          subjectKey: draft.repoKey,
+          path: draft.path,
+          clipboard: draft.clipboard.copied,
+        });
+        return {
+          status: "SHARE_DRAFT",
+          subjectKind: "github",
+          channel,
+          repo: draft.repoKey,
+          path: draft.path,
+          text: draft.text,
+          repoUrl: draft.repoUrl,
+          clipboard: draft.clipboard,
+          next: [
+            "Revise o texto (arquivo ou clipboard).",
+            "Publique manualmente no LinkedIn.",
+            `Depois: jarvis share done ${draft.repoKey}`,
+          ],
+          note: "Draft a partir do GitHub via `gh` — não precisa de Cycle do JARVIS.",
+        };
+      }
+
+      // draft — Cycle COMPLETED
+      let row = parsed.cycleId ? store.getCycle(parsed.cycleId) : undefined;
+      if (!row) {
+        const completed = store.listCompletedCycles(1)[0];
+        row = completed;
+      }
+      if (!row) {
+        return {
+          status: "NO_COMPLETED_CYCLE",
+          hint: "Feche um Cycle com `jarvis feche`, ou use um repo: jarvis share draft owner/repo  |  jarvis share github",
+        };
+      }
+      if (row.status !== "COMPLETED") {
+        return {
+          status: "CYCLE_NOT_COMPLETED",
+          cycleId: row.id,
+          cycleStatus: row.status,
+          hint: "Share draft de Cycle usa só COMPLETED. Para GitHub sem Cycle: jarvis share draft owner/repo",
+        };
+      }
+      const cycle = fromRow(row);
+      const draft = createLinkedInDraft(projectRoot, cycle, git, options.path ? { path: options.path } : undefined);
+      const existing = store.getShare(cycle.id, channel);
+      store.upsertShare({
+        id: existing?.id ?? newShareId(),
+        project_id: store.projectId,
+        cycle_id: cycle.id,
+        channel,
+        status: existing?.status === "POSTED" ? "POSTED" : "DRAFT",
+        draft_path: draft.path,
+        draft_text: draft.text,
+        posted_at: existing?.posted_at ?? null,
+        created_at: existing?.created_at ?? nowIso(),
+      });
+      if (draft.repoUrl) {
+        const repoKey = normalizeRepoKey(draft.repoUrl);
+        if (repoKey) {
+          const gExisting = getGlobalShare("github", repoKey, channel);
+          upsertGlobalShare({
+            subjectKind: "github",
+            subjectKey: repoKey,
+            channel,
+            status: gExisting?.status === "POSTED" ? "POSTED" : "DRAFT",
+            draftPath: draft.path,
+            draftText: draft.text,
+            postedAt: gExisting?.postedAt ?? null,
+            meta: { repoUrl: draft.repoUrl, projectName: draft.projectName },
+          });
+        }
+      }
+      const clipboard = tryCopyToClipboard(draft.text);
+      observe(store, "SHARE_DRAFT", { cycleId: cycle.id, path: draft.path, clipboard: clipboard.ok }, cycle.id);
+      return {
+        status: "SHARE_DRAFT",
+        subjectKind: "cycle",
+        channel,
+        cycleId: cycle.id,
+        path: draft.path,
+        text: draft.text,
+        repoUrl: draft.repoUrl,
+        clipboard: clipboard.ok
+          ? { copied: true }
+          : { copied: false, detail: clipboard.detail },
+        next: [
+          "Revise o texto no arquivo (ou cole do clipboard).",
+          "Publique manualmente no LinkedIn (perfil pessoal).",
+          `Depois: jarvis share done ${cycle.id}`,
+        ],
+        note: "Sem autopost. API LinkedIn pessoal não é usada de propósito.",
+      };
     }
 
     if (command === "context") {
@@ -644,6 +923,14 @@ export function handle(command: CommandName, projectRoot: string, options: Comma
         status: cycle.status,
         cycleId: cycle.id,
         message: "Cycle closed. current_cycle was cleared.",
+        ...(status === "COMPLETED"
+          ? {
+              next: {
+                share: `jarvis share draft`,
+                hint: "Gera rascunho LinkedIn (perfil pessoal) a partir deste Cycle — sem autopost.",
+              },
+            }
+          : {}),
       };
     }
 

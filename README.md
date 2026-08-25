@@ -45,6 +45,7 @@ jarvis feche
 | Roda **testes** quando há runner evidenciado | Inventar estado sem evidência |
 | Autoriza **envelope de execução** para o host | Descartar/stash/reset git automaticamente |
 | Exporta/importa **packs de evidência** para o time | Sync live de SQLite entre máquinas |
+| Gera **rascunho LinkedIn** pós-Cycle (você publica) | Autopost LinkedIn / API de perfil pessoal |
 
 ---
 
@@ -172,6 +173,11 @@ O primeiro `planeje` **auto-inicializa** `.harness/` se o projeto ainda não tiv
 | `jarvis who` / `quem` | Quem segura o lock do Cycle |
 | `jarvis export` / `exportar` | Pack de evidência do Cycle (para o time) |
 | `jarvis import` / `importar --path` | Importa pack (somente leitura; não rouba o Cycle) |
+| `jarvis share` / `compartilhar` | Rascunho LinkedIn (Cycle COMPLETED ou repo GitHub) |
+| `jarvis share github` | Lista repos da conta (`gh`) e o que ainda não postou |
+| `jarvis share draft owner/repo` | Draft LinkedIn de um repo — **não precisa** de Cycle |
+| `jarvis share status` | Quais Cycles COMPLETED locais ainda não foram postados |
+| `jarvis share done [cycleId\|owner/repo]` | Marca draft como publicado (só registro local) |
 | `jarvis pause` | Pausa o Cycle ativo |
 | `jarvis wait --checks` | Lê checks de PR via `gh` CLI (quando disponível) |
 | `jarvis resume` | Retoma Cycle pausado |
@@ -198,6 +204,7 @@ O CLI entende verbos em PT — o token `jarvis` no meio da frase é ignorado:
 | `quem` | `who` |
 | `exportar` | `export` |
 | `importar` | `import` |
+| `compartilhar`, `linkedin` | `share` |
 | `pausar`, `pausa` | `pause` |
 | `retomar`, `continuar` | `resume` |
 | `aguardar`, `aguarde`, `esperar` | `wait` |
@@ -210,6 +217,10 @@ jarvis desenvolva --approve
 jarvis teste
 jarvis revise
 jarvis feche
+jarvis share draft
+jarvis share github
+jarvis share draft RikkyRS/Jarvis
+jarvis share done RikkyRS/Jarvis
 ```
 
 ---

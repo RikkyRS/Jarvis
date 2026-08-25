@@ -42,13 +42,18 @@ Natural language:
   jarvis memorizar "nota"
   jarvis quem                # quem segura o lock
   jarvis exportar            # pack de evidência do Cycle
+  jarvis compartilhar        # rascunho LinkedIn (sem autopost)
+  jarvis share github        # repos da conta gh ainda não postados
+  jarvis share draft o/r     # draft de repo GitHub (sem Cycle)
+  jarvis share status        # Cycles COMPLETED locais
+  jarvis share done          # marca rascunho como publicado
   jarvis importar --path x   # importa pack (read-only)
   jarvis servidor            # backend local 127.0.0.1:39217
 
 Options:
   --project <path>   target project (required inside the JARVIS runtime)
   --approve          explicit approval for HIGH-risk operations
-  --path <file>      path for export/import
+  --path <file>      path for export/import/share draft
   --remote           fetch remote on reconcile
   --checks           read PR checks via gh on wait
   --port <n>         port for serve (default 39217)

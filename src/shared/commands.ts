@@ -18,6 +18,7 @@ export const COMMANDS = [
   "who",
   "export",
   "import",
+  "share",
   "close",
   "doctor",
 ] as const;
