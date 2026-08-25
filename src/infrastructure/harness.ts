@@ -17,6 +17,7 @@ export const HARNESS_SUBDIRS = [
   "cache",
   "locks",
   "logs",
+  "shares",
 ] as const;
 
 export type JarvisConfig = {

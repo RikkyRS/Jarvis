@@ -215,7 +215,78 @@ export class Store {
       .prepare("SELECT type, payload, created_at, cycle_id FROM events ORDER BY created_at DESC LIMIT ?")
       .all(limit) as Array<{ type: string; payload: string; created_at: string; cycle_id: string | null }>;
   }
+
+  listCycles(limit = 50): CycleRow[] {
+    return this.db
+      .prepare("SELECT * FROM cycles WHERE project_id = ? ORDER BY number DESC LIMIT ?")
+      .all(this.projectId, limit) as CycleRow[];
+  }
+
+  listCompletedCycles(limit = 50): CycleRow[] {
+    return this.db
+      .prepare(
+        "SELECT * FROM cycles WHERE project_id = ? AND status = 'COMPLETED' ORDER BY number DESC LIMIT ?",
+      )
+      .all(this.projectId, limit) as CycleRow[];
+  }
+
+  getShare(cycleId: string, channel: string): ShareRow | undefined {
+    return this.db
+      .prepare("SELECT * FROM shares WHERE project_id = ? AND cycle_id = ? AND channel = ?")
+      .get(this.projectId, cycleId, channel) as ShareRow | undefined;
+  }
+
+  listShares(limit = 50): ShareRow[] {
+    return this.db
+      .prepare("SELECT * FROM shares WHERE project_id = ? ORDER BY created_at DESC LIMIT ?")
+      .all(this.projectId, limit) as ShareRow[];
+  }
+
+  upsertShare(row: ShareRow): void {
+    this.db
+      .prepare(
+        `INSERT INTO shares (id, project_id, cycle_id, channel, status, draft_path, draft_text, posted_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(project_id, cycle_id, channel) DO UPDATE SET
+           status = excluded.status,
+           draft_path = excluded.draft_path,
+           draft_text = excluded.draft_text,
+           posted_at = excluded.posted_at`,
+      )
+      .run(
+        row.id,
+        row.project_id,
+        row.cycle_id,
+        row.channel,
+        row.status,
+        row.draft_path,
+        row.draft_text,
+        row.posted_at,
+        row.created_at,
+      );
+  }
+
+  markSharePosted(cycleId: string, channel: string, postedAt: string): boolean {
+    const result = this.db
+      .prepare(
+        "UPDATE shares SET status = 'POSTED', posted_at = ? WHERE project_id = ? AND cycle_id = ? AND channel = ?",
+      )
+      .run(postedAt, this.projectId, cycleId, channel);
+    return Number(result.changes) > 0;
+  }
 }
+
+export type ShareRow = {
+  id: string;
+  project_id: string;
+  cycle_id: string;
+  channel: string;
+  status: string;
+  draft_path: string | null;
+  draft_text: string;
+  posted_at: string | null;
+  created_at: string;
+};
 
 export function sqlitePath(projectRoot: string): string {
   return join(harnessRoot(projectRoot), "state", "jarvis.sqlite");

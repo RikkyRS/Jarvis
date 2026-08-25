@@ -6,6 +6,18 @@ Versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-25
+
+### Added
+
+- **`jarvis share` / `compartilhar`** — rascunho LinkedIn (perfil pessoal)
+  - **Cycle:** `jarvis share draft` a partir de Cycle **COMPLETED** (`.harness/shares/`)
+  - **GitHub (sem Cycle):** `jarvis share github` lista repos via `gh`; `jarvis share draft owner/repo` gera texto a partir da descrição/commits
+  - `jarvis share status` — Cycles locais; `jarvis share done [cycleId|owner/repo]` marca publicado
+  - Registro global em `~/.jarvis/shares.json` para repos (trabalho feito fora do JARVIS também)
+- Hint `next.share` no retorno de `jarvis feche` quando o Cycle completa
+- Schema migration **v3**: tabela `shares` (Cycles no projeto)
+
 ## [0.5.1] - 2026-08-22
 
 ### Fixed
