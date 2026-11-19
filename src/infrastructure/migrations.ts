@@ -116,6 +116,34 @@ CREATE INDEX IF NOT EXISTS idx_shares_cycle ON shares(cycle_id);
 `);
     },
   },
+
+  {
+    version: 4,
+    up: (db) => {
+      db.exec(`
+CREATE TABLE IF NOT EXISTS operation_approvals (
+  id TEXT PRIMARY KEY,
+  operation_id TEXT NOT NULL UNIQUE,
+  cycle_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  approved_by TEXT,
+  operation TEXT NOT NULL CHECK (operation IN ('DEV', 'TEST', 'COMMIT', 'PUSH')),
+  target TEXT NOT NULL,
+  parameters_hash TEXT NOT NULL CHECK (length(parameters_hash) = 64),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  approved_at TEXT,
+  consumed_at TEXT,
+  status TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'CONSUMED', 'REJECTED', 'EXPIRED'))
+);
+CREATE INDEX IF NOT EXISTS idx_operation_approvals_scope
+  ON operation_approvals(project_id, cycle_id, status);
+CREATE INDEX IF NOT EXISTS idx_operation_approvals_expiry
+  ON operation_approvals(status, expires_at);
+`);
+    },
+  },
 ];
 
 export function runMigrations(db: DatabaseSync): number {

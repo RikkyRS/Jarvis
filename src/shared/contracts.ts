@@ -4,6 +4,44 @@ import { IdSchema } from "./ids.js";
 export const KnowledgeStateSchema = z.enum(["KNOWN", "INFERRED", "UNKNOWN", "CONTRADICTED"]);
 export const ConfidenceSchema = z.enum(["NONE", "LOW", "MEDIUM", "HIGH"]);
 export const RiskLevelSchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export const OperationApprovalOperationSchema = z.enum(["DEV", "TEST", "COMMIT", "PUSH"]);
+export const OperationApprovalStatusSchema = z.enum(["PENDING", "APPROVED", "CONSUMED", "REJECTED", "EXPIRED"]);
+
+const OperationApprovalBaseSchema = z
+  .object({
+    id: z.string().min(1),
+    operationId: z.string().min(1),
+    cycleId: z.string().min(1),
+    projectId: z.string().min(1),
+    requestedBy: z.string().min(1),
+    operation: OperationApprovalOperationSchema,
+    target: z.string().min(1),
+    parametersHash: z.string().regex(/^[a-f0-9]{64}$/i),
+    createdAt: z.string().datetime(),
+    expiresAt: z.string().datetime(),
+  })
+  .strict();
+
+export const NewOperationApprovalSchema = OperationApprovalBaseSchema.refine(
+  (value) => Date.parse(value.expiresAt) > Date.parse(value.createdAt),
+  {
+    message: "Approval expiry must be later than its creation time.",
+    path: ["expiresAt"],
+  },
+);
+
+export const OperationApprovalSchema = OperationApprovalBaseSchema.extend({
+  approvedBy: z.string().min(1).nullable(),
+  approvedAt: z.string().datetime().nullable(),
+  consumedAt: z.string().datetime().nullable(),
+  status: OperationApprovalStatusSchema,
+}).strict();
+
+export type OperationApprovalOperation = z.infer<typeof OperationApprovalOperationSchema>;
+export type OperationApprovalStatus = z.infer<typeof OperationApprovalStatusSchema>;
+export type NewOperationApproval = z.infer<typeof NewOperationApprovalSchema>;
+export type OperationApproval = z.infer<typeof OperationApprovalSchema>;
+
 export const PermissionDecisionSchema = z.enum(["ALLOW", "APPROVAL_REQUIRED", "BLOCKED"]);
 
 export const CycleStatusSchema = z.enum([

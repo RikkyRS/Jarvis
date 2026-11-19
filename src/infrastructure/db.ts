@@ -4,7 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { harnessRoot } from "./harness.js";
 import { nowIso } from "../shared/util.js";
 import { runMigrations } from "./migrations.js";
-import type { CycleStatus } from "../shared/contracts.js";
+import { NewOperationApprovalSchema, OperationApprovalSchema } from "../shared/contracts.js";
+import type { CycleStatus, NewOperationApproval, OperationApproval } from "../shared/contracts.js";
 
 export { LATEST_SCHEMA_VERSION } from "./migrations.js";
 
@@ -153,6 +154,132 @@ export class Store {
 
   deleteLock(cycleId: string): void {
     this.db.prepare("DELETE FROM locks WHERE cycle_id = ?").run(cycleId);
+  }
+
+
+  createOperationApproval(input: NewOperationApproval): void {
+    const approval = NewOperationApprovalSchema.parse(input);
+    if (approval.projectId !== this.projectId) {
+      throw new Error("Approval project does not match the current Store.");
+    }
+    const cycle = this.db
+      .prepare("SELECT id FROM cycles WHERE id = ? AND project_id = ?")
+      .get(approval.cycleId, this.projectId);
+    if (!cycle) {
+      throw new Error("Approval Cycle does not belong to the current project.");
+    }
+    this.db
+      .prepare(
+        `INSERT INTO operation_approvals (
+          id, operation_id, cycle_id, project_id, requested_by, approved_by,
+          operation, target, parameters_hash, created_at, expires_at,
+          approved_at, consumed_at, status
+        ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL, 'PENDING')`,
+      )
+      .run(
+        approval.id,
+        approval.operationId,
+        approval.cycleId,
+        approval.projectId,
+        approval.requestedBy,
+        approval.operation,
+        approval.target,
+        approval.parametersHash,
+        approval.createdAt,
+        approval.expiresAt,
+      );
+  }
+
+  getOperationApproval(id: string): OperationApproval | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM operation_approvals WHERE id = ? AND project_id = ?")
+      .get(id, this.projectId) as Record<string, unknown> | undefined;
+    if (!row) return undefined;
+    return OperationApprovalSchema.parse({
+      id: row.id,
+      operationId: row.operation_id,
+      cycleId: row.cycle_id,
+      projectId: row.project_id,
+      requestedBy: row.requested_by,
+      approvedBy: row.approved_by,
+      operation: row.operation,
+      target: row.target,
+      parametersHash: row.parameters_hash,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      approvedAt: row.approved_at,
+      consumedAt: row.consumed_at,
+      status: row.status,
+    });
+  }
+
+  approveOperationApproval(id: string, approvedBy: string, approvedAt = nowIso()): boolean {
+    if (!approvedBy.trim()) throw new Error("Approver identity is required.");
+    return this.transaction(() => {
+      const result = this.db
+        .prepare(
+          `UPDATE operation_approvals
+           SET status = 'APPROVED', approved_by = ?, approved_at = ?
+           WHERE id = ? AND project_id = ? AND status = 'PENDING' AND expires_at > ?`,
+        )
+        .run(approvedBy, approvedAt, id, this.projectId, approvedAt);
+      return Number(result.changes) === 1;
+    });
+  }
+
+  consumeOperationApproval(input: {
+    id: string;
+    cycleId: string;
+    operation: OperationApproval["operation"];
+    target: string;
+    parametersHash: string;
+    consumedAt?: string;
+  }): boolean {
+    const consumedAt = input.consumedAt ?? nowIso();
+    return this.transaction(() => {
+      const result = this.db
+        .prepare(
+          `UPDATE operation_approvals
+           SET status = 'CONSUMED', consumed_at = ?
+           WHERE id = ? AND project_id = ? AND cycle_id = ?
+             AND operation = ? AND target = ? AND parameters_hash = ?
+             AND status = 'APPROVED' AND approved_by IS NOT NULL
+             AND expires_at > ? AND consumed_at IS NULL`,
+        )
+        .run(
+          consumedAt,
+          input.id,
+          this.projectId,
+          input.cycleId,
+          input.operation,
+          input.target,
+          input.parametersHash,
+          consumedAt,
+        );
+      return Number(result.changes) === 1;
+    });
+  }
+
+  rejectOperationApproval(id: string, rejectedAt = nowIso()): boolean {
+    return this.transaction(() => {
+      const result = this.db
+        .prepare(
+          `UPDATE operation_approvals SET status = 'REJECTED'
+           WHERE id = ? AND project_id = ? AND status = 'PENDING' AND expires_at > ?`,
+        )
+        .run(id, this.projectId, rejectedAt);
+      return Number(result.changes) === 1;
+    });
+  }
+
+  expireOperationApprovals(now = nowIso()): number {
+    const result = this.db
+      .prepare(
+        `UPDATE operation_approvals SET status = 'EXPIRED'
+         WHERE project_id = ? AND status IN ('PENDING', 'APPROVED') AND expires_at <= ?`,
+      )
+      .run(this.projectId, now);
+    return Number(result.changes);
   }
 
   addApproval(id: string, cycleId: string, command: string): void {
