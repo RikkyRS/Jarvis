@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { Store } from "../../src/infrastructure/db.js";
+import type { NewOperationApproval } from "../../src/shared/contracts.js";
 
 const directories: string[] = [];
 
@@ -26,7 +27,7 @@ function createStore() {
   return { root, store };
 }
 
-function approval(store: Store, overrides: Record<string, unknown> = {}) {
+function approval(store: Store, overrides: Partial<NewOperationApproval> = {}): NewOperationApproval {
   const createdAt = new Date(Date.now() - 1_000).toISOString();
   return {
     id: "approval-1",
