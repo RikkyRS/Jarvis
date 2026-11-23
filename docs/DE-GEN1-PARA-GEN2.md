@@ -248,3 +248,4 @@ A ideia central do JARVIS: ele faz o trabalho, tira as dúvidas com você e cont
 - **Consulta seletiva:** o contrato é dividido em cláusulas e a busca devolve só as poucas que importam, com documento, versão e cláusula.
 - **Triagem:** `REPEATED`, `IN_SCOPE`, `OUT_OF_SCOPE` ou `UNCLEAR`, sempre citando a evidência. Sem evidência válida vira `UNCLEAR` e um humano decide. Sem nada relevante no contrato, o modelo nem é chamado (sem gastar tokens).
 - **Quem decide:** a triagem é consultiva. O que está dentro do contrato vira proposta e plano; **você aprova o plano e só então ele executa**. O que está fora vira aviso de escopo.
+- **Projeto sem contrato:** funciona normalmente. A triagem vira `UNCLEAR` com o motivo `NoContractOnFile`, o modelo nem é chamado e o pedido segue direto para proposta, plano e aprovação. Só com histórico (sem contrato), repetições ainda são detectadas, mas o escopo nunca é adivinhado.

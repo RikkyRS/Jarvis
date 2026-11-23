@@ -236,6 +236,40 @@ describe("contract triage", () => {
     expect(t.verdict).toBe("UNCLEAR"); // no citation, so no verdict
   });
 
+  it("[R-CONTRACT-05] a project with no contract works: no model call, request goes to the normal flow", async () => {
+    const fresh = domain.createProject({ name: "sem-contrato", root: "/n", createdBy: owner }).id;
+    const empty = new ContractStore(db, audit, fresh);
+    const { provider, c } = ctx(
+      JSON.stringify({ verdict: "IN_SCOPE", citations: [], rationale: "" }),
+    );
+    const t = await triageRequest("Trocar a cor do botão de agendar", { ...c, contract: empty });
+    expect(t).toMatchObject({ status: "OK", verdict: "UNCLEAR", reason: "NoContractOnFile" });
+    expect(provider.seen).toHaveLength(0);
+  });
+
+  it("[R-CONTRACT-05] with only a history (no contract) repeats are still detected, scope is not guessed", async () => {
+    const fresh = domain.createProject({ name: "so-historico", root: "/h", createdBy: owner }).id;
+    const only = new ContractStore(db, audit, fresh);
+    only.add({ kind: "HISTORY", text: HISTORY, sourceName: "h.md", actor: owner });
+    const hist = only.retrieve("horário duplicado mesmo horário", { kinds: ["HISTORY"] })[0]!;
+    const repeated = ctx(
+      JSON.stringify({ verdict: "REPEATED", citations: [hist.chunkId], rationale: "Já feito." }),
+    );
+    const r = await triageRequest("Dois clientes no mesmo horário de novo", {
+      ...repeated.c,
+      contract: only,
+    });
+    expect(r.verdict).toBe("REPEATED");
+    const noClause = ctx(
+      JSON.stringify({ verdict: "IN_SCOPE", citations: [hist.chunkId], rationale: "x" }),
+    );
+    const s2 = await triageRequest("Dois clientes no mesmo horário de novo", {
+      ...noClause.c,
+      contract: only,
+    });
+    expect(s2).toMatchObject({ verdict: "UNCLEAR", reason: "NoValidCitation" });
+  });
+
   it("malformed model output degrades to UNAVAILABLE", async () => {
     const t = await triageRequest("aplicativo móvel nativo", ctx("not json").c);
     expect(t).toMatchObject({

@@ -71,6 +71,9 @@ const unclear = (reason: string, status: Triage["status"] = "OK"): Triage => ({
 
 export async function triageRequest(request: string, ctx: TriageContext): Promise<Triage> {
   const text = request.trim().slice(0, 4000);
+  // A project may have no contract at all. That is a normal mode, not an error: no scope check is
+  // possible, so the request goes straight to the usual proposal and planning flow.
+  if (ctx.contract.list().length === 0) return unclear("NoContractOnFile");
   const rules = ctx.contract.retrieve(text, { kinds: ["CONTRACT", "SCOPE"], limit: 4 });
   const history = ctx.contract.retrieve(text, { kinds: ["HISTORY"], limit: 4 });
   const evidence = [...rules, ...history];

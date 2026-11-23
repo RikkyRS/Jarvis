@@ -1,6 +1,6 @@
 # Os testes do JARVIS, por área
 
-Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **165 testes, 162 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
+Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **167 testes, 164 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
 
 Como ler: cada título descreve o comportamento garantido. Os que começam com `[R-...]` são **requisitos críticos** da matriz em [`TESTING.md`](TESTING.md); `tests/unit/traceability.test.ts` falha se um requisito ficar sem teste.
 
@@ -20,7 +20,7 @@ JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento co
 | `integration/adapters` | 8 |
 | `integration/ai-runtime` | 15 |
 | `integration/container-profile` | 2 |
-| `integration/contract` | 13 |
+| `integration/contract` | 15 |
 | `integration/docker-live` | 1 |
 | `integration/domain-budget` | 13 |
 | `integration/gateway` | 18 |
@@ -36,7 +36,7 @@ JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento co
 | `unit/domain` | 7 |
 | `unit/requirements` | 5 |
 | `unit/traceability` | 3 |
-| **Total** | **165** |
+| **Total** | **167** |
 
 ---
 
@@ -120,7 +120,7 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 
 ---
 
-## `integration/contract` (13)
+## `integration/contract` (15)
 
 
 
@@ -136,6 +136,8 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 - [R-CONTRACT-04] a verdict with an invented or mismatched citation is downgraded to UNCLEAR
 - [R-CONTRACT-04] with nothing relevant on file the model is not called and no tokens are spent
 - [R-CONTRACT-04] hostile text in the request is data and cannot force a verdict
+- [R-CONTRACT-05] a project with no contract works: no model call, request goes to the normal flow
+- [R-CONTRACT-05] with only a history (no contract) repeats are still detected, scope is not guessed
 - malformed model output degrades to UNAVAILABLE
 
 ---
