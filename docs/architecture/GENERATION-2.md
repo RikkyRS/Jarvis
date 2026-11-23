@@ -21,7 +21,7 @@ AI clients may reason, plan, explain, and request capabilities. They cannot gran
 9. Project state, knowledge, credentials, and approvals are isolated by project.
 10. Every protected decision and side effect is auditable.
 11. Implementation agents do not have final authority to validate the global integration of their own contributions.
-12. Token consumption is governed centrally and measured at the project level.
+12. Token consumption is governed centrally and budgeted by Mission; every usage event remains attributable to its Project, Mission, Work Item, Workflow Run, agent, operation, provider, and model.
 
 ## Logical architecture
 
@@ -91,13 +91,15 @@ The domain hierarchy is:
 
 ```text
 Project
-  └── Work Item
-        └── Workflow Run
-              └── Operations
-                    └── Operation-specific Approval
+  └── Mission
+        └── Work Item
+              └── Workflow Run
+                    └── Operations
+                          └── Operation-specific Approval
 ```
 
-- **Project**: repository/project boundary and shared project knowledge/policies.
+- **Project**: repository/project boundary and shared project knowledge/policies. It may contain multiple Missions.
+- **Mission**: durable, user-defined outcome or substantial body of work (for example, building a financial software product). It owns the approved token budget for its scope, retains its history after completion, and may be reopened for a separately evaluated and authorized improvement stage.
 - **Work Item**: durable unit of requested work, with objective, requirements, acceptance criteria, decisions, and review feedback. It remains reopenable after an execution or worktree is closed.
 - **Workflow Run**: one attempt to perform or revise a Work Item. A Work Item may have multiple runs over time.
 - **Operation**: a concrete action, such as editing a file, running a test, staging paths, committing, or pushing.
@@ -226,9 +228,13 @@ Line numbers alone are insufficient because they shift. Reports must be derived 
 
 ### Confirmed token policy
 
-The JARVIS uses a **shared token budget per Project**, not independent primary budgets for each agent. The user selected token-count control only; mandatory financial cost accounting is out of scope for this policy.
+The authoritative token budget belongs to a **Mission**, not to a recurring calendar period and not to an individual agent. A Project may contain multiple Missions, each with its own independently authorized token allowance and complete usage history.
 
-Shared budget does not mean untracked usage. Every usage event should be attributable to its project, Work Item, Workflow Run, agent, operation, provider, and model.
+A Mission represents a substantial outcome agreed with the user. Before implementation, the Requirement & Context Analyzer gathers relevant context, clarifies material requirements, and works with the user to establish scope, architecture, deliverables, and acceptance criteria. Once the scope is agreed, the JARVIS estimates the required token allowance and requests the user's authorization for an initial grant.
+
+The user may authorize a substantial initial allowance for the agreed scope. The JARVIS must not silently enlarge that allowance. If the mission is likely to exceed its remaining budget, it must pause new LLM calls as required by policy, preserve recoverable checkpoints, explain completed work and remaining work, estimate the additional tokens required, and request an explicitly authorized additional grant.
+
+When the agreed scope is completed, the JARVIS presents an evidence-backed delivery for user evaluation. If the user requests changes or improvements, the JARVIS assesses the new work, estimates its token requirement, and requests a new authorized grant before proceeding when the existing allowance is insufficient. A completed Mission remains durable and reviewable; its history and usage ledger are never reset. Reopening it for another stage does not erase prior consumption or automatically replenish its budget.
 
 ### Token usage records
 
@@ -240,7 +246,7 @@ Capture, when the provider exposes them:
 - estimated tokens before the call;
 - actual usage reported after the call;
 - provider/model identifiers and timestamp;
-- associated Project, Work Item, Workflow Run, agent, and Operation IDs.
+- associated Project, Mission, Work Item, Workflow Run, agent, and Operation IDs.
 
 Estimated, actual, and unavailable measurements must be clearly distinguished. Never present an estimate as provider-reported actual usage.
 
@@ -248,59 +254,46 @@ Estimated, actual, and unavailable measurements must be clearly distinguished. N
 
 A centralized Token Budget Manager mediates LLM calls and is responsible for:
 
-- project-level available budget and consumption ledger;
-- preflight estimates where practical;
+- mission-level authorized allowance and consumption ledger;
+- preflight estimates when practical;
+- explicit, auditable initial and additional grants;
 - atomic reservation/settlement to avoid concurrent overspending;
 - configurable warning and restriction thresholds;
-- hard enforcement of the project budget;
+- hard enforcement of the mission's authorized budget;
 - operational safeguards against loops, oversized outputs, and redundant calls;
-- usage reporting by agent/task/run/provider/model;
-- checkpointing and resumable pause when the budget is exhausted.
+- usage reporting by mission, agent, Work Item, Workflow Run, operation, provider, and model;
+- checkpointing and resumable pause when the budget is exhausted or insufficient.
 
 Agents cannot bypass this manager by calling a provider directly. Provider adapters must report usage consistently. Tools that do not invoke an LLM (for example, Git inspection, local file operations, and deterministic test execution) do not consume LLM tokens, though they remain subject to execution/time/resource policies.
 
-### Efficiency mechanisms
+### Mission budget lifecycle
 
-- **Context Builder**: constructs a minimal, task-relevant context.
-- **Selective Retrieval**: retrieves only relevant project knowledge and source evidence.
-- **Deduplication**: removes repeated context where safe.
-- **Incremental Analysis**: reanalyzes only impacted areas when dependency/invalidation evidence supports it.
-- **Summarization**: compacts history while preserving requirements, decisions, constraints, evidence, and unresolved questions.
-- **Model Routing**: chooses a suitable provider/model based on task complexity and policy, not simply the most capable model.
-- **Stop Conditions**: detects unproductive loops and caps iterations/output.
-- **Result Reuse**: reuses prior analysis/test results only when their validity conditions still hold.
+1. **Scope and estimation**: clarify the mission with the user, define acceptance criteria, and estimate token needs. Estimates must identify uncertainty and must not be represented as guarantees.
+2. **Initial authorization**: present the proposed allowance and obtain explicit user authorization. Record amount, authorizing actor, timestamp, mission, scope/version, and any applicable constraints.
+3. **Execution and monitoring**: all agents and Work Items within the Mission share its authorized allowance. Usage remains attributable to each agent, Work Item, Workflow Run, operation, provider, and model.
+4. **Approaching the limit**: notify the orchestrator at configurable thresholds, reduce redundant context/work, preserve checkpoints, and prepare a clear progress/remaining-work report.
+5. **Insufficient allowance**: stop new LLM calls when the hard limit is reached or a safe continuation is not possible. Present actual/estimated consumption, completed work, remaining work, and an estimate for additional tokens. Wait for explicit user authorization before increasing the allowance.
+6. **Delivery and evaluation**: when the agreed scope is complete, produce an evidence-backed report and submit the result for user evaluation.
+7. **Revision stage**: if the user requests changes, clarify the requested revision, estimate its token needs, and request an additional grant if required. Preserve the original mission history and all previous usage records.
+
+A grant must be auditable and immutable in the ledger: amount, grant type (initial/additional), authorizing actor, authorization timestamp, mission/scope reference, reason, and relevant metadata. The runtime must never grant itself additional tokens. A user-approved increase changes the mission's authorized allowance through a distinct recorded event; it does not rewrite prior usage.
+
+### Budget exhaustion and efficiency
+
+- Configurable warning/restriction thresholds may notify the orchestrator, optimize context, reprioritize work, and prepare checkpoints. Initial numeric thresholds are proposals, not confirmed defaults.
+- At the authorized hard limit, block new LLM calls and pause AI-dependent work with recoverable checkpoints. Deterministic operations may continue only if safe, useful, and permitted.
+- If a provider call is already in flight when the limit is reached, record its actual reported usage when available and prevent further calls. Do not claim that an incomplete call completed.
+- The orchestrator may reserve part of the already-authorized mission allowance for critical work; a reserve is not extra budget and cannot increase the authorized total.
+- **Context Builder** constructs minimal task-relevant context.
+- **Selective Retrieval** retrieves only relevant project knowledge and source evidence.
+- **Deduplication** removes repeated context where safe.
+- **Incremental Analysis** reanalyzes only impacted areas when dependency/invalidation evidence supports it.
+- **Summarization** compacts history while preserving requirements, decisions, constraints, evidence, and unresolved questions.
+- **Model Routing** chooses a suitable provider/model based on task complexity and policy.
+- **Stop Conditions** detect unproductive loops and cap iterations/output.
+- **Result Reuse** reuses prior analysis/test results only when their validity conditions still hold.
 
 Context compression must not discard business rules, security constraints, approvals, or evidence needed for correctness.
-
-### Shared budget exhaustion policy — confirmed hybrid decision
-
-The user selected a hybrid policy:
-
-- At a configurable warning threshold (initial proposal: 70%), notify the orchestrator and optimize context/redundant work.
-- At a configurable restriction threshold (initial proposal: 90%), suspend nonessential AI calls, reprioritize work, and preserve checkpoints.
-- At 100%, block new LLM calls, checkpoint and pause workflows that require AI, and await user-authorized budget replenishment or a new budget period.
-- Deterministic operations may continue only if safe, useful, and permitted; no workflow may falsely report completion because its AI budget is exhausted.
-- The orchestrator may prioritize work and protect a reserved portion of the same project budget for critical activities. A reserve is part of the total budget, not extra tokens.
-- If a provider call is already in flight when the limit is reached, record its actual reported usage when available and prevent further calls. Do not claim that an incomplete call completed.
-
-The 70% and 90% thresholds and the size/eligibility of any reserve are initial design proposals, not yet finalized configuration defaults.
-
-The capped carryover rule is confirmed, but its numeric cap and the detailed accounting/expiry behavior for additional grants remain open decisions.
-
-### Budget renewal — confirmed hybrid decision
-
-The user selected a hybrid renewal model:
-
-- Each Project has a configurable recurring base token allowance for a defined period.
-- The project may receive additional token grants when needed, without changing the recurring base allowance.
-- Base allowance and additional grants contribute to the same shared project budget and are consumed under the same Token Budget Manager.
-- Every grant must be auditable: amount, source/reason, authorizing actor, creation time, and applicable validity/expiry metadata.
-- The runtime must not silently increase the allowance. Additional grants require an explicit authorized action.
-- Each Project configures its own recurring allowance period; projects do not have to share one global period length.
-- Each Project configures its own renewal time zone using an IANA time-zone identifier (for example, `America/Sao_Paulo`). Period boundaries are interpreted in that Project's configured local time zone, while persisted instants and ledger timestamps use UTC. The renewal clock time is configurable per Project and defaults to `00:00` local time when omitted. Daylight-saving-time transition handling remains an explicit open decision and must prevent duplicate renewals or ambiguous period boundaries.
-- Unused tokens follow a **capped carryover** policy: a configurable maximum amount may roll into the next allowance period; any unused balance above that cap expires at the period boundary. The cap is not yet assigned a numeric default.
-- The exact rollover/expiry and consumption-order rules for additional token grants remain open and must be defined explicitly; grants must not be treated as perpetual by assumption.
-- Period renewal must not erase usage history or interrupt the audit ledger. It creates a new allowance period while preserving prior records and outstanding execution checkpoints.
 
 This is a token-count policy; it does not require financial cost tracking.
 
@@ -372,9 +365,7 @@ This document is the persistent architecture source of truth for the Generation 
 
 ### Open decisions
 
-- Daylight-saving-time transition handling for per-Project renewal boundaries; the IANA time-zone identifier and configurable local reset clock (default `00:00`) are confirmed.
-- Numeric value and configuration scope of the capped carryover limit.
-- Exact rollover/expiry behavior and consumption ordering for additional token grants.
-- Exact token threshold defaults and reserve policy.
+- Exact token warning/restriction threshold defaults and reserve policy.
+- Detailed grant schema, authorization UX, and accounting behavior for provider usage unavailable or reported late.
 - Detailed candidate branch/PR mechanics and merge strategy, to be decided against the actual repository workflow.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
