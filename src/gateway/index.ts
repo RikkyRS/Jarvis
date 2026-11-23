@@ -24,6 +24,8 @@ const PATH_TARGET_TYPES: ReadonlySet<OperationType> = new Set([
   "FILE_EDIT",
   "TEST_RUN",
   "GIT_STAGE",
+  "GIT_WORKTREE_ADD",
+  "GIT_WORKTREE_REMOVE",
 ]);
 /** Operations that execute project-provided code and therefore need the trust check. */
 const EXECUTES_PROJECT_CODE: ReadonlySet<OperationType> = new Set(["TEST_RUN"]);
@@ -37,7 +39,12 @@ export type HandlerContext = {
   runner: ProcessRunner;
 };
 
-export type HandlerResult = { ok: boolean; evidence: Record<string, unknown> };
+export type HandlerResult = {
+  ok: boolean;
+  evidence: Record<string, unknown>;
+  /** Non-persisted payload returned to the caller (e.g. file content). */
+  output?: unknown;
+};
 export type OperationHandler = (context: HandlerContext) => Promise<HandlerResult>;
 
 export type Outcome = "SUCCEEDED" | "FAILED" | "BLOCKED" | "DENIED";
@@ -49,6 +56,7 @@ export type ExecutionResult = {
   risk: RiskLevel | null;
   reason: string;
   evidence: Record<string, unknown>;
+  output?: unknown;
 };
 
 export type GatewayOptions = {
@@ -204,14 +212,20 @@ export class ExecutionGateway {
           target,
         );
       }
-      return finish(
+      const done = finish(
         result.ok ? "SUCCEEDED" : "FAILED",
-        result.ok ? "OK" : "HANDLER_REPORTED_FAILURE",
+        result.ok
+          ? "OK"
+          : result.evidence["reason"]
+            ? String(result.evidence["reason"])
+            : "HANDLER_REPORTED_FAILURE",
         policy.decision,
         policy.risk,
         { ...result.evidence, isolation: runner.kind },
         target,
       );
+      if (result.output !== undefined) done.output = result.output;
+      return done;
     } catch (error) {
       return finish(
         "FAILED",

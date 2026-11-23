@@ -7,6 +7,8 @@ export type ProcessSpec = {
   cwd: string;
   timeoutMs: number;
   maxOutputBytes: number;
+  /** Extra variables, restricted to a safe name pattern. Never inherited secrets. */
+  env?: Record<string, string>;
 };
 
 export type ProcessResult = {
@@ -24,12 +26,19 @@ export interface ProcessRunner {
 }
 
 /** Only these variables ever reach a child process. No inherited secrets. */
-function minimalEnv(): NodeJS.ProcessEnv {
+const SAFE_EXTRA_ENV = /^(GIT_[A-Z_]+|CI|NO_COLOR|LC_ALL|LANG)$/;
+
+function minimalEnv(inheritHome: boolean, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const keep =
     process.platform === "win32"
       ? ["PATH", "SystemRoot", "ComSpec", "PATHEXT", "TEMP", "TMP"]
       : ["PATH"];
   const env: NodeJS.ProcessEnv = {};
+  if (inheritHome) keep.push("HOME", "USERPROFILE", "APPDATA", "XDG_CONFIG_HOME");
+  for (const [key, value] of Object.entries(extra)) {
+    if (!SAFE_EXTRA_ENV.test(key)) throw new Error(`Environment variable not allowed: ${key}`);
+    env[key] = value;
+  }
   for (const key of keep) {
     const value = process.env[key];
     if (value !== undefined) env[key] = value;
@@ -44,7 +53,10 @@ function minimalEnv(): NodeJS.ProcessEnv {
 export class HostRunner implements ProcessRunner {
   readonly kind = "host" as const;
 
-  constructor(private readonly allowlist: readonly string[]) {}
+  constructor(
+    private readonly allowlist: readonly string[],
+    private readonly options: { inheritHome?: boolean } = {},
+  ) {}
 
   run(spec: ProcessSpec): Promise<ProcessResult> {
     const name = basename(spec.command)
@@ -60,7 +72,7 @@ export class HostRunner implements ProcessRunner {
         [...spec.args],
         {
           cwd: spec.cwd,
-          env: minimalEnv(),
+          env: minimalEnv(this.options.inheritHome ?? false, spec.env),
           timeout: spec.timeoutMs,
           maxBuffer: spec.maxOutputBytes,
           shell: false,

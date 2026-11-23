@@ -18,6 +18,8 @@ export const OperationTypeSchema = z.enum([
   "GIT_COMMIT",
   "GIT_PUSH",
   "GIT_MERGE",
+  "GIT_WORKTREE_ADD",
+  "GIT_WORKTREE_REMOVE",
   "GIT_FORCE_PUSH",
   "GIT_RESET_HARD",
   "GIT_CLEAN",
