@@ -15,7 +15,22 @@ export type ContainerOptions = {
   cpus?: string;
   pidsLimit?: number;
   dockerBinary?: string;
+  /** "uid:gid" the code runs as. Defaults to the host user so the mounted workspace is readable. */
+  user?: string;
 };
+
+/**
+ * The container must be able to read the workspace the host user owns (a private temp directory is
+ * mode 0700 on Linux), so it runs as the host uid/gid. It is never root. Docker Desktop on Windows
+ * and macOS maps mount permissions, so a fixed unprivileged id is used there.
+ */
+export function defaultContainerUser(): string {
+  if (typeof process.getuid === "function" && typeof process.getgid === "function") {
+    const uid = process.getuid();
+    if (uid !== 0) return `${uid}:${process.getgid()}`;
+  }
+  return "1000:1000";
+}
 
 export class ContainerConfigError extends Error {
   constructor(message: string) {
@@ -68,7 +83,7 @@ export function buildDockerArgs(
     "--cpus",
     options.cpus ?? "2",
     "--user",
-    "1000:1000",
+    options.user ?? defaultContainerUser(),
     "--tmpfs",
     "/tmp:rw,noexec,nosuid,size=256m",
     "--mount",
