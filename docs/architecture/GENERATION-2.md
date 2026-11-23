@@ -285,6 +285,8 @@ The user selected a hybrid policy:
 
 The 70% and 90% thresholds and the size/eligibility of any reserve are initial design proposals, not yet finalized configuration defaults.
 
+The capped carryover rule is confirmed, but its numeric cap and the detailed accounting/expiry behavior for additional grants remain open decisions.
+
 ### Budget renewal — confirmed hybrid decision
 
 The user selected a hybrid renewal model:
@@ -294,7 +296,9 @@ The user selected a hybrid renewal model:
 - Base allowance and additional grants contribute to the same shared project budget and are consumed under the same Token Budget Manager.
 - Every grant must be auditable: amount, source/reason, authorizing actor, creation time, and applicable validity/expiry metadata.
 - The runtime must not silently increase the allowance. Additional grants require an explicit authorized action.
-- The period length, reset boundary/time zone, rollover/carryover behavior, and expiry policy for additional grants remain configuration/product decisions and must not be hard-coded by assumption.
+- The period length and reset boundary/time zone remain configuration/product decisions and must not be hard-coded by assumption.
+- Unused tokens follow a **capped carryover** policy: a configurable maximum amount may roll into the next allowance period; any unused balance above that cap expires at the period boundary. The cap is not yet assigned a numeric default.
+- The exact rollover/expiry and consumption-order rules for additional token grants remain open and must be defined explicitly; grants must not be treated as perpetual by assumption.
 - Period renewal must not erase usage history or interrupt the audit ledger. It creates a new allowance period while preserving prior records and outstanding execution checkpoints.
 
 This is a token-count policy; it does not require financial cost tracking.
@@ -355,7 +359,8 @@ This document is the persistent architecture source of truth for the Generation 
 - Produce evidence-backed change reports explaining what changed and why, with files/symbols, approximate line ranges, commit/diff references, and actual test results.
 - Token budget: shared per project, with usage tracked by agent/task/run/operation/provider/model; token counts only, no mandatory financial budget.
 - Token exhaustion: hybrid policy — optimize and reprioritize as the budget is consumed, then pause AI-dependent work at the hard limit with recoverable checkpoints.
-- Token budget renewal: hybrid recurring base allowance per Project plus explicitly authorized additional token grants. Period length and rollover/expiry rules remain open.
+- Token budget renewal: hybrid recurring base allowance per Project plus explicitly authorized additional token grants.
+- Unused token balances use capped carryover: up to a configurable cap rolls into the next period; the excess expires. The numeric cap remains open.
 
 ### Proposed, not yet finalized
 
@@ -367,8 +372,8 @@ This document is the persistent architecture source of truth for the Generation 
 ### Open decisions
 
 - Recurring token period length and reset boundary/time zone.
-- Whether unused base tokens roll over, expire, or follow a capped carryover policy.
-- Expiry/rollover rules for additional token grants.
+- Numeric value and configuration scope of the capped carryover limit.
+- Exact rollover/expiry behavior and consumption ordering for additional token grants.
 - Exact token threshold defaults and reserve policy.
 - Detailed candidate branch/PR mechanics and merge strategy, to be decided against the actual repository workflow.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
