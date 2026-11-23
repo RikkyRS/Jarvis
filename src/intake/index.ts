@@ -1,6 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import type { AiRuntime } from "../ai/index.js";
 import type { BudgetPhase, Principal } from "../domain/contracts.js";
 import type { ContractStore } from "../contract/index.js";
@@ -49,9 +48,12 @@ const ClassificationSchema = z
   .strict();
 export type Classification = z.infer<typeof ClassificationSchema>;
 
-export const CLASSIFICATION_JSON_SCHEMA = zodToJsonSchema(ClassificationSchema, {
-  $refStrategy: "none",
+const classificationJson = z.toJSONSchema(ClassificationSchema, {
+  target: "draft-7",
+  reused: "inline",
 }) as Record<string, unknown>;
+delete classificationJson["$schema"];
+export const CLASSIFICATION_JSON_SCHEMA: Record<string, unknown> = classificationJson;
 
 const SYSTEM_PROMPT = [
   "You classify chat messages into possible software work items for a human to review.",
