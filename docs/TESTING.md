@@ -94,4 +94,9 @@ The six requirements the project is judged against come first.
 | R-CONTRACT-04 | A triage verdict needs valid evidence from the stored documents; otherwise it is UNCLEAR and a human decides | adversarial |
 | R-CONTRACT-05 | A project without a contract works: no scope check, no model call, the request follows the normal flow | integration |
 
+| R-INTAKE-03 | A client request is triaged against the contract with cited evidence, as a proposal only; a triage failure never blocks it | integration |
+| R-INTAKE-04 | A reply to the client is only a stored draft; JARVIS has no way to send it, and the digest lists what waits for the human | integration |
+| R-PRIVACY-01 | The state directory (messages, contract text) can never be committed, even if the project forgot to ignore it | integration |
+| R-PRIVACY-02 | The privacy report flags cloud models, exposed data and old stored messages, and passes when everything is local | integration |
+
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.

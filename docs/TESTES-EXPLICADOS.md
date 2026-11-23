@@ -1,6 +1,6 @@
 # Os testes do JARVIS, por área
 
-Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **167 testes, 164 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
+Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **175 testes, 172 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
 
 Como ler: cada título descreve o comportamento garantido. Os que começam com `[R-...]` são **requisitos críticos** da matriz em [`TESTING.md`](TESTING.md); `tests/unit/traceability.test.ts` falha se um requisito ficar sem teste.
 
@@ -12,31 +12,33 @@ JARVIS_CLAUDE_LIVE=1 npm test                                    # Claude Code d
 JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento com Docker real (já roda no CI)
 ```
 
-| Área | Testes |
-|---|---:|
-| `e2e/cli-lifecycle` | 1 |
-| `e2e/full-flow` | 10 |
-| `e2e/protected-paths` | 2 |
-| `integration/adapters` | 8 |
-| `integration/ai-runtime` | 15 |
-| `integration/container-profile` | 2 |
-| `integration/contract` | 15 |
-| `integration/docker-live` | 1 |
-| `integration/domain-budget` | 13 |
-| `integration/gateway` | 18 |
-| `integration/git` | 10 |
-| `integration/intake` | 11 |
-| `integration/interpretation` | 6 |
-| `integration/plan-steps` | 6 |
-| `integration/planning-notes` | 12 |
-| `integration/providers-http` | 2 |
-| `integration/providers-live` | 2 |
-| `integration/resolver-knowledge` | 12 |
-| `recovery/recovery` | 6 |
-| `unit/domain` | 7 |
-| `unit/requirements` | 5 |
-| `unit/traceability` | 3 |
-| **Total** | **167** |
+| Área                             |  Testes |
+| -------------------------------- | ------: |
+| `e2e/cli-lifecycle`              |       1 |
+| `e2e/full-flow`                  |      10 |
+| `e2e/protected-paths`            |       2 |
+| `integration/adapters`           |       8 |
+| `integration/ai-runtime`         |      15 |
+| `integration/container-profile`  |       2 |
+| `integration/contract`           |      15 |
+| `integration/docker-live`        |       1 |
+| `integration/domain-budget`      |      13 |
+| `integration/gateway`            |      18 |
+| `integration/git`                |      10 |
+| `integration/intake`             |      11 |
+| `integration/intake-triage`      |       5 |
+| `integration/interpretation`     |       6 |
+| `integration/plan-steps`         |       6 |
+| `integration/planning-notes`     |      12 |
+| `integration/privacy`            |       3 |
+| `integration/providers-http`     |       2 |
+| `integration/providers-live`     |       2 |
+| `integration/resolver-knowledge` |      12 |
+| `recovery/recovery`              |       6 |
+| `unit/domain`                    |       7 |
+| `unit/requirements`              |       5 |
+| `unit/traceability`              |       3 |
+| **Total**                        | **175** |
 
 ---
 
@@ -113,16 +115,12 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 
 ## `integration/container-profile` (2)
 
-
-
 - [R-ISO-02] never runs as root and defaults to an unprivileged id
 - [R-ISO-02] the user is part of the locked-down argument list and can be overridden
 
 ---
 
 ## `integration/contract` (15)
-
-
 
 - [R-CONTRACT-02] only a human can add documents; an agent is refused
 - [R-CONTRACT-02] a new version replaces the one consulted; the old is kept and audited
@@ -230,6 +228,16 @@ Mensagens externas (WhatsApp): são dado não confiável e viram proposta
 
 ---
 
+## `integration/intake-triage` (5)
+
+- [R-INTAKE-03] a repeated complaint arrives as a proposal tagged REPEATED with the history as evidence
+- [R-INTAKE-03] a triage failure never blocks the proposal
+- [R-INTAKE-04] a reply is only a draft stored for the human; there is no way to send it
+- [R-INTAKE-04] the digest counts what waits for the human
+- [R-CONTRACT-05] works as before: proposal created, triage skipped, no extra model call
+
+---
+
 ## `integration/interpretation` (6)
 
 Interpretação do Resolver por LLM: consultiva, sem poder de decisão
@@ -272,6 +280,14 @@ Planning gate e diário de aprendizado
 - CLI drives questions -> answers -> plan -> approval
 - CLI approvals --watch announces new requests; retention apply works
 - [R-MCP-03] an agent can ask questions and draft a plan but can never approve it
+
+---
+
+## `integration/privacy` (3)
+
+- [R-PRIVACY-01] the state directory can never be committed, even if the project forgot to ignore it
+- [R-PRIVACY-02] the report flags a cloud model and an exposed state directory, and is OK when local
+- [R-PRIVACY-02] the report warns about old processed messages kept as text
 
 ---
 

@@ -310,6 +310,39 @@ export class ContractStore {
     return hits.sort((a, b) => b.score - a.score).slice(0, opts.limit ?? 5);
   }
 
+  /** Text of specific clauses (for citing them), restricted to this project. */
+  chunksByIds(ids: readonly string[]): ContractHit[] {
+    const out: ContractHit[] = [];
+    const stmt = this.db.prepare(
+      `SELECT c.id AS chunk_id, c.doc_id, c.ref, c.text, d.kind, d.version
+       FROM contract_chunks c JOIN contract_docs d ON d.id = c.doc_id
+       WHERE c.id = ? AND c.project_id = ?`,
+    );
+    for (const id of ids) {
+      const r = stmt.get(id, this.projectId) as
+        | {
+            chunk_id: string;
+            doc_id: string;
+            ref: string;
+            text: string;
+            kind: ContractKind;
+            version: number;
+          }
+        | undefined;
+      if (r)
+        out.push({
+          chunkId: r.chunk_id,
+          docId: r.doc_id,
+          kind: r.kind,
+          version: r.version,
+          ref: r.ref,
+          text: r.text,
+          score: 1,
+        });
+    }
+    return out;
+  }
+
   private toDoc(r: DocRow): ContractDoc {
     return {
       id: r.id,

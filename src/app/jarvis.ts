@@ -22,6 +22,7 @@ import {
 import { defaultHandlers } from "../git/handlers.js";
 import { Intake, type IntakeConfig } from "../intake/index.js";
 import { ContractStore } from "../contract/index.js";
+import { hardenDataDir } from "./privacy.js";
 import { KnowledgeStore } from "../knowledge/index.js";
 import { Notes } from "../notes/index.js";
 import { Planning } from "../planning/index.js";
@@ -111,6 +112,8 @@ export class Jarvis {
   readonly project: Project;
   readonly config: ProjectConfig;
   readonly root: string;
+  /** Where the learning journal is written. */
+  readonly notesDir: string;
   readonly human: Principal;
 
   private constructor(options: JarvisOptions) {
@@ -121,6 +124,7 @@ export class Jarvis {
     const clock = options.clock ?? systemClock;
     const dir = join(this.root, ".jarvis");
     mkdirSync(dir, { recursive: true });
+    hardenDataDir(dir);
     const configFile = join(dir, "config.json");
     this.config = ProjectConfigSchema.parse(
       existsSync(configFile) ? JSON.parse(readFileSync(configFile, "utf8")) : {},
@@ -176,6 +180,7 @@ export class Jarvis {
       options.notesDir ??
       this.config.notesDir ??
       join(homedir(), "Jarvis-Notas", this.project.name.replace(/[^A-Za-z0-9._-]+/g, "-"));
+    this.notesDir = notesDir;
     this.notes = new Notes(this.db, this.store, this.planning, this.knowledge, notesDir, {
       id: this.project.id,
       name: this.project.name,
@@ -246,6 +251,7 @@ export class Jarvis {
     return new Intake(this.db, this.audit, this.store, this.ai, {
       ...config,
       projectId: this.project.id,
+      contract: this.contract,
     });
   }
 

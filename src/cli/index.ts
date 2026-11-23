@@ -2,10 +2,15 @@ import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { userInfo } from "node:os";
 import { parseArgs } from "node:util";
+import { randomUUID } from "node:crypto";
+import type { ProviderAdapter } from "../ai/index.js";
+import { ClaudeCodeProvider, OllamaProvider } from "../ai/providers.js";
 import { Jarvis } from "../app/jarvis.js";
+import { privacyReport } from "../app/privacy.js";
 import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
 import { exportSchemas } from "../contracts/export.js";
 import { CONTRACT_KINDS, readContractFile, type ContractKind } from "../contract/index.js";
+import type { Triage } from "../contract/triage.js";
 import { HostRunner } from "../gateway/index.js";
 import { applyRetention } from "../persistence/retention.js";
 import { buildChangeReport, renderChangeReport } from "../report/index.js";
@@ -66,7 +71,12 @@ export const HELP = `jarvis — deterministic engineering runtime
   budget status <missionId> <PREPARATION|EXECUTION>
   budget grant <missionId> <PREPARATION|EXECUTION> <tokens> --reason <text>
   audit verify
+  inbox add <sender> <text...> [--conversation <id>]   put a forwarded client message in the inbox
+  inbox process --mission <id> [--phase PREPARATION|EXECUTION]   classify new messages into proposals and check them against the contract
+  privacy                         where client data can go, and what to fix (changes nothing)
+  digest                          what is waiting for you (messages, proposals with their scope verdict, approvals)
   proposals                       task proposals waiting for your decision
+  proposal reply <id> --mission <id>   draft a reply to the client for you to send (never sent by JARVIS)
   proposal confirm <id> [--new]   create the Work Item (or merge into the duplicate unless --new)
   proposal reject <id>
   contract add <CONTRACT|SCOPE|HISTORY> <file.md|.txt|.pdf> [--title <t>]   this project's contract (a new version replaces the one consulted)
@@ -78,10 +88,45 @@ export const HELP = `jarvis — deterministic engineering runtime
   mcp [--client <name>]           serve the MCP adapter for AI clients on stdio
 `;
 
+function scopeLine(t: Triage | null): string {
+  if (!t) return "  scope: not checked (no contract or no model)";
+  if (t.verdict === "UNCLEAR")
+    return `  scope: UNCLEAR${t.reason ? ` (${t.reason})` : ""}. You decide.`;
+  const cited = t.citations.map((c) => `${c.kind} v${c.version} ${c.ref}`).join("; ");
+  return `  scope: ${t.verdict} (${cited})`;
+}
+
 export function humanPrincipal(env: NodeJS.ProcessEnv = process.env): Principal {
   const id = env["JARVIS_USER"] ?? userInfo().username;
   return { kind: "human", id };
 }
+
+/**
+ * Model backends for the human CLI. Local by default: a client's messages stay on this machine
+ * unless you explicitly allow Claude Code (JARVIS_ALLOW_CLAUDE=1).
+ */
+export function providersFromEnv(env: NodeJS.ProcessEnv, root: string): ProviderAdapter[] {
+  const out: ProviderAdapter[] = [];
+  const model = env["JARVIS_OLLAMA_MODEL"];
+  if (model)
+    out.push(
+      new OllamaProvider({
+        models: [{ id: model, tier: 1 }],
+        ...(env["JARVIS_OLLAMA_URL"] ? { baseUrl: env["JARVIS_OLLAMA_URL"] } : {}),
+      }),
+    );
+  if (env["JARVIS_ALLOW_CLAUDE"] === "1")
+    out.push(
+      new ClaudeCodeProvider(new HostRunner(["claude"], { inheritHome: true }), {
+        cwd: root,
+        ...(env["JARVIS_CLAUDE_BIN"] ? { binary: env["JARVIS_CLAUDE_BIN"] } : {}),
+      }),
+    );
+  return out;
+}
+
+const NO_MODEL =
+  "No model configured. For client messages use a local one: set JARVIS_OLLAMA_MODEL (for example qwen2.5:7b). Claude Code only with JARVIS_ALLOW_CLAUDE=1.";
 
 export async function run(
   argv: string[],
@@ -103,6 +148,7 @@ export async function run(
   const jarvis = Jarvis.open({
     root,
     human,
+    providers: providersFromEnv(env, root),
     ...(env["JARVIS_NOTES_DIR"] ? { notesDir: env["JARVIS_NOTES_DIR"] } : {}),
   });
   try {
@@ -339,11 +385,105 @@ export async function run(
           );
           io.out(`  objective: ${p.objective}`);
           for (const r of p.requirements) io.out(`  - ${r}`);
+          io.out(scopeLine(p.triage));
         }
         return 0;
       }
 
+      case "inbox": {
+        if (sub === "add") {
+          const { values, positionals } = parseArgs({
+            args: rest,
+            allowPositionals: true,
+            options: { conversation: { type: "string" } },
+          });
+          const [sender, ...words] = positionals;
+          const text = words.join(" ");
+          if (!sender || !text)
+            return usage(io, "inbox add <sender> <text...> [--conversation <id>]");
+          const r = jarvis
+            .intake({ missionId: "", phase: "PREPARATION", allowedSenders: new Set([sender]) })
+            .ingest({
+              channel: "manual",
+              externalId: randomUUID(),
+              sender,
+              conversationId: values.conversation ?? sender,
+              receivedAt: new Date().toISOString(),
+              text,
+            });
+          io.out(`Message ${r.id}: ${r.status}`);
+          return 0;
+        }
+        if (sub === "process") {
+          const { values } = parseArgs({
+            args: rest,
+            options: { mission: { type: "string" }, phase: { type: "string" } },
+          });
+          const phase = BudgetPhaseSchema.safeParse(values.phase ?? "PREPARATION");
+          if (!values.mission || !phase.success)
+            return usage(io, "inbox process --mission <id> [--phase PREPARATION|EXECUTION]");
+          if (providersFromEnv(env, root).length === 0) {
+            io.err(NO_MODEL);
+            return 1;
+          }
+          const { proposals, failed } = await jarvis
+            .intake({ missionId: values.mission, phase: phase.data, allowedSenders: new Set() })
+            .classifyPending();
+          io.out(`${proposals.length} proposal(s), ${failed} message(s) could not be classified.`);
+          for (const p of proposals) {
+            io.out(`${p.id}  ${p.title}`);
+            io.out(scopeLine(p.triage));
+          }
+          return 0;
+        }
+        return usage(io, "inbox add|process ...");
+      }
+
+      case "privacy": {
+        const findings = privacyReport(jarvis, env);
+        for (const f of findings) io.out(`[${f.level}] ${f.message}`);
+        return findings.some((f) => f.level === "WARN") ? 1 : 0;
+      }
+
+      case "digest": {
+        const intake = jarvis.intake({
+          missionId: "",
+          phase: "PREPARATION",
+          allowedSenders: new Set(),
+        });
+        const counts = intake.inboxCounts();
+        const status = jarvis.status() as { pendingApprovals?: number };
+        io.out("Waiting for you:");
+        io.out(`  ${counts.newMessages} new message(s) not yet processed`);
+        io.out(`  ${counts.pendingProposals} proposal(s) to decide`);
+        for (const p of intake.listPending()) {
+          io.out(`    - ${p.title}`);
+          io.out(`  ${scopeLine(p.triage)}`);
+        }
+        io.out(`  ${status.pendingApprovals ?? 0} operation(s) awaiting approval`);
+        io.out("Nothing runs until you approve. JARVIS never sends messages.");
+        return 0;
+      }
+
       case "proposal": {
+        if (sub === "reply") {
+          const [replyId, ...replyFlags] = rest;
+          const { values } = parseArgs({
+            args: replyFlags,
+            options: { mission: { type: "string" } },
+          });
+          if (!replyId || !values.mission) return usage(io, "proposal reply <id> --mission <id>");
+          if (providersFromEnv(env, root).length === 0) {
+            io.err(NO_MODEL);
+            return 1;
+          }
+          const draft = await jarvis
+            .intake({ missionId: values.mission, phase: "PREPARATION", allowedSenders: new Set() })
+            .draftReply(replyId);
+          io.out(draft);
+          io.out("(draft for you to review and send; JARVIS does not send messages)");
+          return 0;
+        }
         const [id, ...flags] = rest;
         if (!id || (sub !== "confirm" && sub !== "reject"))
           return usage(io, "proposal confirm|reject <id> [--new]");

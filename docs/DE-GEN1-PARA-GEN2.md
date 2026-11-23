@@ -249,3 +249,11 @@ A ideia central do JARVIS: ele faz o trabalho, tira as dúvidas com você e cont
 - **Triagem:** `REPEATED`, `IN_SCOPE`, `OUT_OF_SCOPE` ou `UNCLEAR`, sempre citando a evidência. Sem evidência válida vira `UNCLEAR` e um humano decide. Sem nada relevante no contrato, o modelo nem é chamado (sem gastar tokens).
 - **Quem decide:** a triagem é consultiva. O que está dentro do contrato vira proposta e plano; **você aprova o plano e só então ele executa**. O que está fora vira aviso de escopo.
 - **Projeto sem contrato:** funciona normalmente. A triagem vira `UNCLEAR` com o motivo `NoContractOnFile`, o modelo nem é chamado e o pedido segue direto para proposta, plano e aprovação. Só com histórico (sem contrato), repetições ainda são detectadas, mas o escopo nunca é adivinhado.
+
+---
+
+## 13. O fluxo ponta a ponta e a privacidade
+
+- **Fluxo:** mensagem do cliente (`inbox add` ou webhook) → `inbox process` classifica em propostas e confere cada uma contra o contrato do projeto → `digest` mostra o que espera por você → você confirma a proposta, aprova o plano e só então ele executa. O JARVIS pode **rascunhar** a resposta ao cliente, mas **não tem como enviar**.
+- **Teste real:** com o Ollama local (`qwen2.5:7b`) e um contrato de exemplo, "dois clientes no mesmo horário de novo" foi marcado `REPEATED` citando o histórico de 02/10, e "queremos um aplicativo móvel nativo" foi marcado `OUT_OF_SCOPE` citando a Cláusula 3. Levou cerca de 2,5 minutos em CPU para duas mensagens.
+- **Privacidade:** `docs/PRIVACIDADE.md` mostra o caminho do dado, o que o JARVIS garante e o que ele não controla (Meta, túnel, o seu computador). `jarvis privacy` confere o estado atual.
