@@ -55,7 +55,7 @@ export function applyRetention(
       .all(options.projectId, cutoff) as Row[];
     for (const e of rows) {
       const raw = String(e["evidence"]);
-      let reason: unknown = null;
+      let reason: unknown;
       try {
         reason = (JSON.parse(raw) as { reason?: unknown }).reason ?? null;
       } catch {
