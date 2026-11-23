@@ -6,7 +6,10 @@ import { MCP_TOOL_NAMES } from "../../src/mcp/server.js";
 
 const dir = join(process.cwd(), "plugin");
 const skills = readdirSync(join(dir, "skills"));
-const read = (name: string) => readFileSync(join(dir, "skills", name, "SKILL.md"), "utf8");
+const read = (name: string) =>
+  readFileSync(join(dir, "skills", name, "SKILL.md"), "utf8")
+    .split(String.fromCharCode(13, 10))
+    .join(String.fromCharCode(10));
 
 describe("Claude Code plugin", () => {
   it("[R-PLUGIN-01] declares five skills, each with a name and a description", () => {
