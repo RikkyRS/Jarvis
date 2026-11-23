@@ -56,4 +56,8 @@ Quality gates: a bug-fix must be reproduced by a test that really failed before 
 
 Container profiles beyond the locked-down default, image provenance beyond digest pinning, delegation and revocation semantics, concurrency fairness beyond priority-then-FIFO, PR metadata conventions beyond explicit `wi_…` ids. See the open decisions in [`docs/architecture/GENERATION-2.md`](docs/architecture/GENERATION-2.md).
 
+## Credits
+
+Created by Henrique Otta Rodrigues. The engineering method layer (planner, faithful developer, blind review, cycle helper, repository index, certainties / proposals / doubts, impact matrix) was designed together with Gabriel (GitHub: Gabrieltupi), who built the original personal harness it grows from.
+
 MIT

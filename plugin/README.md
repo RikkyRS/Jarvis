@@ -26,4 +26,4 @@ Modelos locais por padrão (`JARVIS_OLLAMA_MODEL`). Se você conectar o Claude C
 
 ## Créditos
 
-O método (planejador, desenvolvedor fiel ao plano, revisor cego, auxiliar de ciclo, índice do repositório, separação Certeza / Proposta / Dúvida e matriz de impacto) é inspirado no _personal harness_ de **Gabriel (GitHub: Gabrieltupi)**, usado com a permissão dele e reescrito de forma genérica. A parte que faz cumprir as regras (política, aprovação, auditoria, isolamento) é o runtime do JARVIS.
+O método (planejador, desenvolvedor fiel ao plano, revisor cego, auxiliar de ciclo, índice do repositório, separação Certeza / Proposta / Dúvida e matriz de impacto) foi desenhado **junto com o Gabriel (GitHub: Gabrieltupi)**, a partir do _personal harness_ dele. A parte que faz cumprir as regras (política, aprovação, auditoria, isolamento) é o runtime do JARVIS.
