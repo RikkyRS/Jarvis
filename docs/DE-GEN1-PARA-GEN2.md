@@ -262,7 +262,7 @@ A ideia central do JARVIS: ele faz o trabalho, tira as dúvidas com você e cont
 
 ## 14. O método de engenharia
 
-Inspirado no _personal harness_ de Gabriel (GitHub: Gabrieltupi) (com a permissão dele, reescrito de forma genérica). Ele cuida de **como pensar**; o JARVIS cuida de **o que pode acontecer**.
+Desenhado junto com o Gabriel (GitHub: Gabrieltupi), a partir do _personal harness_ dele, reescrito de forma genérica. Ele cuida de **como pensar**; o JARVIS cuida de **o que pode acontecer**.
 
 | Ideia                       | Como virou código                                                                                                                   |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
