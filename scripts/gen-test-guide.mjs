@@ -1,5 +1,5 @@
 // Generates docs/TESTES-EXPLICADOS.md from the real test results.
-// Usage: npx vitest run --reporter=json > vt.json && node scripts/gen-test-guide.mjs vt.json
+// Usage: npx vitest run --reporter=json --outputFile=vt.json && node scripts/gen-test-guide.mjs vt.json
 import { readFileSync, writeFileSync } from "node:fs";
 
 const raw = readFileSync(process.argv[2] ?? "vt.json", "utf8");

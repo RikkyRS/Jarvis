@@ -277,3 +277,16 @@ Inspirado no _personal harness_ de Gabriel (GitHub: Gabrieltupi) (com a permiss�
 **Como explicar a diferença:** "o método dele é o que o agente _deveria_ fazer; o JARVIS é o que o agente _não consegue deixar de_ fazer". Quem dá o formato é o plano; quem impede o desvio é o runtime.
 
 Mais ideias em [`docs/ROADMAP.md`](ROADMAP.md).
+
+---
+
+## 15. Autonomia delegada
+
+Pedido do dono: o JARVIS faz o trabalho sozinho até o risco intermediário, e o humano entra só nos assuntos críticos.
+
+- **Como:** `jarvis autonomy set INTERMEDIATE`. Um plano cujas operações são todas LOW ou MEDIUM (ler, editar, testar, preparar, criar worktree) é aprovado e iniciado pela delegação. Commit, push, merge e remover worktree (HIGH) continuam pedindo aprovação; force push e reset duro (CRITICAL) seguem bloqueados.
+- **Por que é seguro:** a decisão é do humano, uma vez, numa configuração que o agente não consegue escrever. Cada ação automática vira auditoria com o ator `autonomy` (nunca "humano") e a impressão digital da configuração que a permitiu. Um plano com qualquer operação HIGH, que toque `.jarvis/`, passe do limite de estimativa ou do orçamento, ou tenha dúvida aberta, **não** é aprovado sozinho.
+- **O que mudou na regra "só humano aprova":** ela continua valendo para o que é arriscado. Para LOW/MEDIUM, o humano aprovou **antecipadamente**, ao ligar o nível. É uma exceção explícita, limitada e auditada.
+- **Como explicar:** "não é o agente se autorizando, é o dono delegando por escrito um teto de risco, e o runtime nunca passa do teto".
+
+Detalhes em [`docs/AUTONOMIA.md`](AUTONOMIA.md).

@@ -9,6 +9,7 @@ Você executa o plano aprovado. Sua lealdade é ao plano, não à sua criativida
 
 ## Antes de começar
 
+0. `jarvis_autonomy_status`: mostra o nível de autonomia que o humano configurou e, para cada plano em rascunho, se ele roda sozinho (até risco MEDIUM) ou espera o humano. Você não muda o nível nem dispara a aprovação.
 1. `jarvis_plan_progress` para ver quais passos faltam. Sem plano aprovado, o JARVIS recusa: volte ao planejamento.
 2. Leia o plano inteiro e os arquivos citados nele.
 

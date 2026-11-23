@@ -1,6 +1,6 @@
 # Os testes do JARVIS, por área
 
-Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **191 testes, 188 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
+Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **201 testes, 198 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
 
 Como ler: cada título descreve o comportamento garantido. Os que começam com `[R-...]` são **requisitos críticos** da matriz em [`TESTING.md`](TESTING.md); `tests/unit/traceability.test.ts` falha se um requisito ficar sem teste.
 
@@ -12,35 +12,36 @@ JARVIS_CLAUDE_LIVE=1 npm test                                    # Claude Code d
 JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento com Docker real (já roda no CI)
 ```
 
-| Área | Testes |
-|---|---:|
-| `e2e/cli-lifecycle` | 1 |
-| `e2e/full-flow` | 10 |
-| `e2e/protected-paths` | 2 |
-| `integration/adapters` | 8 |
-| `integration/ai-runtime` | 15 |
-| `integration/container-profile` | 2 |
-| `integration/contract` | 15 |
-| `integration/docker-live` | 1 |
-| `integration/domain-budget` | 13 |
-| `integration/engineering-method` | 12 |
-| `integration/gateway` | 18 |
-| `integration/git` | 10 |
-| `integration/intake` | 11 |
-| `integration/intake-triage` | 5 |
-| `integration/interpretation` | 6 |
-| `integration/plan-steps` | 6 |
-| `integration/planning-notes` | 12 |
-| `integration/privacy` | 3 |
-| `integration/providers-http` | 2 |
-| `integration/providers-live` | 2 |
-| `integration/resolver-knowledge` | 12 |
-| `recovery/recovery` | 6 |
-| `unit/domain` | 7 |
-| `unit/plugin` | 4 |
-| `unit/requirements` | 5 |
-| `unit/traceability` | 3 |
-| **Total** | **191** |
+| Área                             |  Testes |
+| -------------------------------- | ------: |
+| `e2e/cli-lifecycle`              |       1 |
+| `e2e/full-flow`                  |      10 |
+| `e2e/protected-paths`            |       2 |
+| `integration/adapters`           |       8 |
+| `integration/ai-runtime`         |      15 |
+| `integration/autonomy`           |      10 |
+| `integration/container-profile`  |       2 |
+| `integration/contract`           |      15 |
+| `integration/docker-live`        |       1 |
+| `integration/domain-budget`      |      13 |
+| `integration/engineering-method` |      12 |
+| `integration/gateway`            |      18 |
+| `integration/git`                |      10 |
+| `integration/intake`             |      11 |
+| `integration/intake-triage`      |       5 |
+| `integration/interpretation`     |       6 |
+| `integration/plan-steps`         |       6 |
+| `integration/planning-notes`     |      12 |
+| `integration/privacy`            |       3 |
+| `integration/providers-http`     |       2 |
+| `integration/providers-live`     |       2 |
+| `integration/resolver-knowledge` |      12 |
+| `recovery/recovery`              |       6 |
+| `unit/domain`                    |       7 |
+| `unit/plugin`                    |       4 |
+| `unit/requirements`              |       5 |
+| `unit/traceability`              |       3 |
+| **Total**                        | **201** |
 
 ---
 
@@ -115,9 +116,22 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 
 ---
 
+## `integration/autonomy` (10)
+
+- [R-AUTONOMY-01] is off by default: nothing is approved or started without the human
+- [R-AUTONOMY-01] at INTERMEDIATE an all-MEDIUM plan is approved and started, attributed to the delegation
+- [R-AUTONOMY-02] a plan with anything HIGH (commit) is never auto-approved
+- [R-AUTONOMY-02] a project that requires approval for a type keeps that plan for the human
+- [R-AUTONOMY-02] respects the estimate limit and the authorized budget
+- [R-AUTONOMY-03] a plan touching the control files (.jarvis/) is never eligible
+- [R-AUTONOMY-03] the delegation is not a human: approve and start by delegation refuse when it is off
+- [R-AUTONOMY-03] only the human changes the level, through the CLI, and the change is audited
+- [R-AUTONOMY-04] a cited IN_SCOPE request becomes a Work Item by delegation
+- [R-AUTONOMY-04] OUT_OF_SCOPE, UNCLEAR and the switch being off always wait for the human
+
+---
+
 ## `integration/container-profile` (2)
-
-
 
 - [R-ISO-02] never runs as root and defaults to an unprivileged id
 - [R-ISO-02] the user is part of the locked-down argument list and can be overridden
@@ -125,8 +139,6 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 ---
 
 ## `integration/contract` (15)
-
-
 
 - [R-CONTRACT-02] only a human can add documents; an agent is refused
 - [R-CONTRACT-02] a new version replaces the one consulted; the old is kept and audited
@@ -175,8 +187,6 @@ Projetos, Missions, Work Items e orçamento de tokens
 ---
 
 ## `integration/engineering-method` (12)
-
-
 
 - [R-METHOD-01] a bug-fix plan cannot be approved without showing the cause
 - [R-METHOD-02] an open doubt blocks the plan; resolving it unblocks
@@ -255,8 +265,6 @@ Mensagens externas (WhatsApp): são dado não confiável e viram proposta
 
 ## `integration/intake-triage` (5)
 
-
-
 - [R-INTAKE-03] a repeated complaint arrives as a proposal tagged REPEATED with the history as evidence
 - [R-INTAKE-03] a triage failure never blocks the proposal
 - [R-INTAKE-04] a reply is only a draft stored for the human; there is no way to send it
@@ -311,8 +319,6 @@ Planning gate e diário de aprendizado
 ---
 
 ## `integration/privacy` (3)
-
-
 
 - [R-PRIVACY-01] the state directory can never be committed, even if the project forgot to ignore it
 - [R-PRIVACY-02] the report flags a cloud model and an exposed state directory, and is OK when local
@@ -385,8 +391,6 @@ Regras de domínio: política, estado e hash canônico
 ---
 
 ## `unit/plugin` (4)
-
-
 
 - [R-PLUGIN-01] declares five skills, each with a name and a description
 - [R-PLUGIN-01] every MCP tool a skill mentions really exists

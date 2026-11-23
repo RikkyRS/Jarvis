@@ -106,5 +106,9 @@ The six requirements the project is judged against come first.
 | R-METHOD-05 | Commit message and PR description are drafted from the approved plan, short and never invented | unit |
 | R-METHOD-06 | Documentation drift separates what holds from what aged and reports what it could not check | unit |
 | R-PLUGIN-01 | The plugin skills mention only MCP tools and CLI commands that exist, and none lets an agent approve | unit |
+| R-AUTONOMY-01 | Autonomy is off by default; at INTERMEDIATE an all-LOW/MEDIUM plan is approved and started by the delegation, attributed to it and audited | integration |
+| R-AUTONOMY-02 | Anything HIGH or CRITICAL, a project-required approval, an estimate over the limit or the budget is never auto-approved | adversarial |
+| R-AUTONOMY-03 | The delegation is not a human; control files are never eligible; only the human changes the level, through the CLI, audited | adversarial |
+| R-AUTONOMY-04 | Only a cited IN_SCOPE, non-duplicate request is confirmed automatically; OUT_OF_SCOPE and UNCLEAR always wait for the human | adversarial |
 
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.
