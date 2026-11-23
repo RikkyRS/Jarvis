@@ -19,6 +19,8 @@ The Generation 1 harness (0.6.x) is preserved at git tag `legacy-0.6.0-gen1` and
 
 Untrusted project code never runs on the host: without a container runner the Gateway blocks it.
 
+See [`docs/USAGE.md`](docs/USAGE.md), [`docs/TESTING.md`](docs/TESTING.md) and [`docs/architecture/THREAT-MODEL.md`](docs/architecture/THREAT-MODEL.md).
+
 ## Develop
 
 ```bash
@@ -28,9 +30,12 @@ npm run ci   # typecheck, lint, tests, build
 
 Requires Node >= 22.5 (`node:sqlite`).
 
-## Next (see implementation sequence in the architecture doc)
+## Also implemented
 
-Persistence of Projects / Work Items / Workflow Runs, Mission and token budgets, MCP + CLI adapters,
-Git handlers, worktrees, Integration Resolver.
+Durable Projects/Work Items/Workflow Runs, Mission token budgets (separate preparation and execution phases, dual-authorized grants), AI runtime (router, scheduler, context builder, loop guards, Ollama and Claude Code adapters), Git/worktree handlers, Integration Resolver, project knowledge store, change reports, channel intake (WhatsApp), MCP and CLI adapters, JSON Schema export.
+
+## Next
+
+Live-daemon container tests, LLM-assisted Resolver interpretation, automatic budget estimation, retention policy for operational data.
 
 MIT

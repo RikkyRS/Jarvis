@@ -281,6 +281,38 @@ export class DomainStore {
     });
   }
 
+  /** Scope changes bump the version and are audited; Work Item scope is what a Mission budget is estimated against. */
+  updateScope(
+    id: string,
+    actor: Principal,
+    scope: { requirements: string[]; acceptanceCriteria: string[] },
+  ): WorkItem {
+    return inTransaction(this.db, () => {
+      const item = this.requireItem(id);
+      this.db
+        .prepare(
+          "UPDATE work_items SET requirements = ?, acceptance_criteria = ?, version = version + 1, updated_at = ? WHERE id = ?",
+        )
+        .run(
+          JSON.stringify(scope.requirements),
+          JSON.stringify(scope.acceptanceCriteria),
+          this.now(),
+          id,
+        );
+      this.audit.append({
+        projectId: item.projectId,
+        kind: "work_item.scope_updated",
+        actor,
+        subject: id,
+        payload: {
+          requirements: scope.requirements.length,
+          acceptanceCriteria: scope.acceptanceCriteria.length,
+        },
+      });
+      return this.getWorkItem(id)!;
+    });
+  }
+
   private requireItem(id: string): WorkItem {
     const item = this.getWorkItem(id);
     if (!item) throw new DomainError(`Unknown work item ${id}.`);

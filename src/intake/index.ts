@@ -116,7 +116,7 @@ export class Intake {
     private readonly db: DatabaseSync,
     private readonly audit: AuditLog,
     private readonly store: DomainStore,
-    private readonly ai: AiRuntime,
+    private readonly ai: AiRuntime | undefined,
     private readonly config: IntakeConfig,
     private readonly clock: Clock = systemClock,
   ) {}
@@ -180,6 +180,7 @@ export class Intake {
       const ids = new Set(batch.map((r) => String(r.id)));
       let parsed: Classification | null = null;
       try {
+        if (!this.ai) throw new Error("Classification needs an AI provider.");
         const result = await this.ai.complete({
           missionId: this.config.missionId,
           phase: this.config.phase,

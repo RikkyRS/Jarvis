@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { OperationRequestInput, Principal, Trust, WorkflowRun } from "../domain/contracts.js";
 import type { ExecutionGateway, ExecutionResult } from "../gateway/index.js";
+import type { MissionBudget } from "../budget/index.js";
 import type { DomainStore } from "../persistence/repositories.js";
 import { DomainError } from "../persistence/repositories.js";
 
@@ -23,7 +24,24 @@ export class WorkflowRuntime {
     private readonly gateway: ExecutionGateway,
     /** Decided by the human-owned project configuration; callers cannot override it. */
     private readonly trust: Trust = "UNTRUSTED",
+    private readonly budget?: MissionBudget,
   ) {}
+
+  /**
+   * AWAITING_EXECUTION_APPROVAL -> RUNNING. Implementation never starts on its own: a human confirms
+   * and the Mission must hold an authorized Execution allowance with budget left.
+   */
+  startExecution(runId: string, missionId: string, actor: Principal): WorkflowRun {
+    if (actor.kind !== "human")
+      throw new DomainError("Only a human can approve the start of execution.");
+    if (!this.budget) throw new DomainError("No budget manager configured.");
+    const status = this.budget.status(missionId, "EXECUTION");
+    if (status.level === "NONE")
+      throw new DomainError("The Mission has no authorized Execution Budget.");
+    if (status.level === "EXHAUSTED")
+      throw new DomainError("The Execution Budget is exhausted; an explicit grant is required.");
+    return this.store.transitionRun(runId, "RUNNING", actor);
+  }
 
   /** Executes one operation for a RUNNING run and checkpoints a failure instead of hiding it. */
   async run(

@@ -11,7 +11,7 @@ function testFiles(dir: string): string[] {
 
 describe("requirement traceability", () => {
   const matrix = readFileSync("docs/TESTING.md", "utf8");
-  const required = [...matrix.matchAll(/^\| (R-[A-Z0-9-]+) \|/gm)].map((m) => m[1]!);
+  const required = [...matrix.matchAll(/^\|\s*(R-[A-Z0-9-]+)\s*\|/gm)].map((m) => m[1]!);
   const cited = new Set<string>();
   for (const file of testFiles("tests")) {
     for (const m of readFileSync(file, "utf8").matchAll(

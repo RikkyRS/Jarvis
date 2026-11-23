@@ -236,7 +236,7 @@ A Mission represents a substantial outcome agreed with the user. Before implemen
 A Mission's budget lifecycle is divided into two distinct authorization phases:
 
 - **Preparation Budget**: a separate, bounded allowance for discovery and planning before the implementation scope is approved. It covers relevant project investigation, requirement clarification, architecture/design exploration, acceptance criteria, and the execution-budget estimate. Preparation usage is recorded against the Mission but is not silently transferred into or deducted from the later Execution Budget.
-The Preparation Budget follows an **adaptive, stage-based estimation model**:
+  The Preparation Budget follows an **adaptive, stage-based estimation model**:
 
 - Estimate preparation work by distinct stages (project investigation, requirement clarification, architecture/design analysis, risk assessment, and planning/documentation), rather than using one unexplained flat number.
 - Use the known mission complexity, project size/knowledge, expected retrieval and analysis scope, and available historical usage from comparable work when valid.
@@ -245,14 +245,13 @@ The Preparation Budget follows an **adaptive, stage-based estimation model**:
 - Re-estimate only affected stages when scope or evidence changes; do not restart the entire estimate without cause.
 
 - **Execution Budget**: requested only after the user has reviewed and approved the prepared scope, deliverables, and acceptance criteria. The JARVIS presents one token estimate, broken down by execution stages/Work Items, and requests explicit authorization for the implementation work.
-The Execution Budget follows the same **adaptive, stage-based estimation model**, with estimates organized around Work Items:
+  The Execution Budget follows the same **adaptive, stage-based estimation model**, with estimates organized around Work Items:
 
 - Estimate each Work Item's expected implementation, tests, review, and integration activities.
 - Aggregate Work Item estimates into one initial Mission Execution Budget, accounting for dependencies and shared activities without double-counting. Present the stages/Work Items and their estimated token amounts, without an uncertainty range or lengthy rationale.
 - Track actual usage by agent, Work Item, Workflow Run, Operation, provider, and model. Re-estimate affected work when evidence or scope changes materially.
 - If the remaining allowance is insufficient, pause before exceeding it, preserve checkpoints, report completed work and pending activities, estimate the additional tokens needed, and request an explicit additional grant.
 - Additional grants are independently authorized and auditable within the same Mission execution history. Neither the runtime nor agents may increase the allowance themselves.
-
 
 Preparation and execution allowances must be independently identifiable in the ledger and authorization records. The Preparation Budget itself requires an explicit authorization; its amount and any additional preparation grant are decided by the user, not invented or automatically increased by the runtime. If preparation allowance becomes insufficient, the JARVIS pauses AI-dependent preparation work, preserves its findings/checkpoints, reports what remains, estimates the additional preparation tokens needed, and waits for authorization. It must not begin implementation merely because preparation is complete or its budget is exhausted.
 
@@ -502,3 +501,45 @@ These decisions affect the permission model, Execution Gateway, scheduler, revie
 - Detailed PR intake metadata conventions, ambiguity thresholds, and supported merge/cherry-pick constraints.
 - Exact concurrency defaults and fairness/priority rules; deterministic trust-classification rules and container profiles; audit retention periods and archive format.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
+
+### Implementation status — 2026-11-23
+
+Built on branch `feat/approval-gate-foundation`; Generation 1 is preserved at tag `legacy-0.6.0-gen1`.
+The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is enforced by a test.
+
+| Stage                                     | Status                                                                    | Where                                               |
+| ----------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1 Architecture, threat model, invariants  | done                                                                      | this document, [`THREAT-MODEL.md`](THREAT-MODEL.md) |
+| 2 Domain contracts and state machines     | done                                                                      | `src/domain`                                        |
+| 3 Persistence and repositories            | done                                                                      | `src/persistence` (migrations 1–4)                  |
+| 4 Policy and operation-specific approvals | done                                                                      | `src/policy`, `src/approval`                        |
+| 5 Execution Gateway and isolation         | done; Docker profile unit-tested, **not exercised against a live daemon** | `src/gateway`                                       |
+| 6 Project Intelligence                    | done (deterministic scan, revalidation, selective retrieval)              | `src/knowledge`                                     |
+| 7 Workflow runtime and recovery           | done                                                                      | `src/runtime`, `src/requirements`                   |
+| 8 MCP and CLI adapters                    | done                                                                      | `src/mcp`, `src/cli`                                |
+| 9 Git, worktrees, Integration Resolver    | done (deterministic assessment; no LLM interpretation yet)                | `src/git`, `src/integration`                        |
+| 10 AI Runtime and token budgets           | done; Ollama and Claude Code adapters tested with fakes only              | `src/ai`, `src/budget`, `src/runtime/scheduler.ts`  |
+| 11 Adversarial tests, CI, docs            | done                                                                      | `tests`, `docs`                                     |
+
+### Confirmed by the user — channel intake (2026-11-23)
+
+- Task intake from chat channels (WhatsApp first) is an **integration capability**, not part of the Workflow Runtime core.
+- The interpreting model is pluggable behind `ProviderAdapter`; Ollama and Claude Code are examples, not dependencies.
+- Messages are untrusted data. A model may interpret and propose; a human confirms; the normal Mission,
+  budget, approval and gateway flow then applies. Proposals are the only automatic outcome.
+
+### Confirmed by the user — testing (2026-11-23)
+
+- Coverage is by behavior and risk. 250–400 tests is a planning estimate, not a target.
+- Done means every critical requirement has automated evidence (matrix in `docs/TESTING.md`), across unit,
+  integration, end-to-end, adversarial and recovery levels.
+
+### Still open (implementation-level)
+
+- Concurrency defaults and fairness/priority beyond priority-then-FIFO.
+- Container profiles beyond the single locked-down default; image provenance beyond digest pinning.
+- Audit retention periods and archive format (critical events are never deleted; operational data policy is not implemented).
+- Delegation UX beyond owner-created, expiring, revocable delegations.
+- Whether JARVIS may later resolve simple low-risk tasks automatically (today: propose only).
+- LLM-assisted interpretation inside the Integration Resolver; PR metadata conventions beyond explicit `wi_…` ids.
+- Mission scope versioning UI and automatic budget estimation (grants are recorded and enforced; estimates are human-entered).

@@ -149,6 +149,7 @@ export class Jarvis {
       this.store,
       this.gateway,
       this.config.trustedProject ? "TRUSTED" : "UNTRUSTED",
+      this.budget,
     );
     this.knowledge = new KnowledgeStore(this.root);
     this.ai = options.providers?.length
@@ -164,8 +165,12 @@ export class Jarvis {
     this.db.close();
   }
 
+  /** Human-side access to proposals; classification additionally needs an AI provider. */
+  proposals(): Intake {
+    return this.intake({ missionId: "", phase: "PREPARATION", allowedSenders: new Set() });
+  }
+
   intake(config: Omit<IntakeConfig, "projectId">): Intake {
-    if (!this.ai) throw new Error("Intake needs at least one AI provider.");
     return new Intake(this.db, this.audit, this.store, this.ai, {
       ...config,
       projectId: this.project.id,

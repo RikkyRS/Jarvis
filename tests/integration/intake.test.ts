@@ -187,6 +187,35 @@ describe("channel intake", () => {
     expect(jarvis.db.prepare("SELECT status FROM inbox_messages").get()).toEqual({ status: "NEW" }); // still pending, nothing lost
   });
 
+  it("lets a human confirm a proposal from the CLI without any AI provider", async () => {
+    const id = intake.ingest(msg("preciso de um filtro por vendedor")).id;
+    reply = () =>
+      JSON.stringify({
+        groups: [
+          group([id], {
+            title: "Filtro por vendedor",
+            objective: "Adicionar filtro por vendedor no relatório",
+          }),
+        ],
+      });
+    const { proposals } = await intake.classifyPending();
+    const { run } = await import("../../src/cli/index.js");
+    const lines: string[] = [];
+    const io = {
+      out: (l: string) => void lines.push(l),
+      err: (l: string) => void lines.push(l),
+      confirm: async () => true,
+    };
+    expect(await run(["proposals"], io, root, { JARVIS_USER: "rikky" })).toBe(0);
+    expect(lines.join("\n")).toContain("Filtro por vendedor");
+    expect(
+      await run(["proposal", "confirm", proposals[0]!.id], io, root, { JARVIS_USER: "rikky" }),
+    ).toBe(0);
+    expect(jarvis.store.listWorkItems(jarvis.project.id).map((i) => i.title)).toEqual([
+      "Filtro por vendedor",
+    ]);
+  });
+
   it("scores similarity independent of accents and short words", () => {
     expect(similarity("Corrigir cálculo de comissão", "calculo comissao corrigir")).toBeGreaterThan(
       0.5,

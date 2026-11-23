@@ -40,6 +40,9 @@ export const HELP = `jarvis — deterministic engineering runtime
   budget status <missionId> <PREPARATION|EXECUTION>
   budget grant <missionId> <PREPARATION|EXECUTION> <tokens> --reason <text>
   audit verify
+  proposals                       task proposals waiting for your decision
+  proposal confirm <id> [--new]   create the Work Item (or merge into the duplicate unless --new)
+  proposal reject <id>
   scan                            analyze the project stack into source-backed knowledge
   know <query>                    retrieve relevant, revalidated claims
   schemas                         print the exported JSON Schema contracts
@@ -201,6 +204,33 @@ export async function run(
           );
           return broken === null ? 0 : 1;
         }
+
+      case "proposals": {
+        const pending = jarvis.proposals().listPending();
+        if (pending.length === 0) io.out("No proposals waiting.");
+        for (const p of pending) {
+          io.out(
+            `${p.id}  ${p.title}${p.duplicateOf ? `  (possible duplicate of ${p.duplicateOf})` : ""}`,
+          );
+          io.out(`  objective: ${p.objective}`);
+          for (const r of p.requirements) io.out(`  - ${r}`);
+        }
+        return 0;
+      }
+
+      case "proposal": {
+        const [id, ...flags] = rest;
+        if (!id || (sub !== "confirm" && sub !== "reject"))
+          return usage(io, "proposal confirm|reject <id> [--new]");
+        if (sub === "reject") {
+          jarvis.proposals().reject(id, human);
+          io.out("Rejected.");
+          return 0;
+        }
+        const out = jarvis.proposals().confirm(id, human, { asNew: flags.includes("--new") });
+        io.out(out.merged ? `Merged into ${out.workItemId}` : `Created ${out.workItemId}`);
+        return 0;
+      }
 
       case "scan": {
         const { claims, refreshed, removed } = jarvis.knowledge.scan();
