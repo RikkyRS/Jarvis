@@ -140,6 +140,7 @@ export class Jarvis {
     this.gateway = new ExecutionGateway({
       projectId: this.project.id,
       projectRoot: this.root,
+      runGuard: (op) => this.runGuard(op),
       db: this.db,
       audit: this.audit,
       approvals: this.approvals,
@@ -182,6 +183,26 @@ export class Jarvis {
 
   static open(options: JarvisOptions): Jarvis {
     return new Jarvis(options);
+  }
+
+  /**
+   * Operations belong to a Workflow Run. Reading and inspecting are fine while the run is alive;
+   * anything that changes or executes needs a RUNNING run of the same Work Item, i.e. after the
+   * plan was approved and execution was started by a human.
+   */
+  private runGuard(op: {
+    projectId: string;
+    workItemId: string;
+    workflowRunId: string;
+    type: string;
+  }): string | null {
+    const run = this.store.getRun(op.workflowRunId);
+    if (!run || run.projectId !== op.projectId || run.workItemId !== op.workItemId)
+      return "RUN_MISMATCH";
+    if (op.type === "FILE_READ" || op.type === "GIT_INSPECT") {
+      return ["COMPLETED", "FAILED", "CANCELLED"].includes(run.status) ? "RUN_FINISHED" : null;
+    }
+    return run.status === "RUNNING" ? null : "RUN_NOT_EXECUTING";
   }
 
   /** Regenerates the learning note for a Work Item. A journal failure is audited, never fatal. */

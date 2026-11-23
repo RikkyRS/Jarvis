@@ -81,6 +81,11 @@ export type GatewayOptions = {
   containerRunner?: ProcessRunner;
   policy?: PolicyConfig;
   clock?: Clock;
+  /**
+   * Returns a reason when the operation may not run in its workflow context (for example the run
+   * is not RUNNING). Supplied by the application layer, which owns workflow state.
+   */
+  runGuard?: (request: OperationRequest) => string | null;
 };
 
 /**
@@ -114,6 +119,8 @@ export class ExecutionGateway {
     const target = PATH_TARGET_TYPES.has(request.type)
       ? canonicalizeTarget(this.options.projectRoot, request.target).relative
       : request.target;
+    const guard = this.options.runGuard?.(request);
+    if (guard) return { decision: "BLOCKED", risk: "HIGH", reason: guard, target };
     return { ...evaluatePolicy(request, this.options.policy), target };
   }
 
@@ -167,6 +174,8 @@ export class ExecutionGateway {
     if (replay) {
       return finish("DENIED", "OPERATION_ALREADY_EXECUTED", null, null);
     }
+    const guard = this.options.runGuard?.(request);
+    if (guard) return finish("DENIED", guard, null, null);
 
     let target = request.target;
     let absoluteTarget: string | null = null;

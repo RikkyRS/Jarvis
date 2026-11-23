@@ -21,6 +21,8 @@ export const MCP_TOOL_NAMES = [
   "jarvis_open_questions",
   "jarvis_submit_plan",
   "jarvis_plan_readiness",
+  "jarvis_mark_step",
+  "jarvis_plan_progress",
 ] as const;
 
 const text = (value: unknown, isError = false) => ({
@@ -229,6 +231,43 @@ export function createMcpServer(jarvis: Jarvis, clientId = "client"): McpServer 
       const item = jarvis.store.getWorkItem(workItemId);
       if (!item || item.projectId !== jarvis.project.id) return text({ error: "NOT_FOUND" }, true);
       return text(jarvis.planning.readiness(workItemId));
+    },
+  );
+
+  server.registerTool(
+    "jarvis_mark_step",
+    {
+      description:
+        "Mark an approved-plan step as done by citing the ids of successful operations that prove it. The claim is verified against the execution ledger (operation type and declared paths).",
+      inputSchema: {
+        workItemId: z.string(),
+        stepId: z.string(),
+        operationIds: z.array(z.string()).min(1),
+      },
+    },
+    async ({ workItemId, stepId, operationIds }) => {
+      try {
+        const item = jarvis.store.getWorkItem(workItemId);
+        if (!item || item.projectId !== jarvis.project.id)
+          return text({ error: "NOT_FOUND" }, true);
+        jarvis.planning.markStep(workItemId, stepId, operationIds, principal);
+        return text(jarvis.planning.progress(workItemId));
+      } catch (error) {
+        return text({ error: error instanceof Error ? error.message : String(error) }, true);
+      }
+    },
+  );
+
+  server.registerTool(
+    "jarvis_plan_progress",
+    {
+      description: "Which plan steps are done, and any changes made outside the approved plan.",
+      inputSchema: { workItemId: z.string() },
+    },
+    async ({ workItemId }) => {
+      const item = jarvis.store.getWorkItem(workItemId);
+      if (!item || item.projectId !== jarvis.project.id) return text({ error: "NOT_FOUND" }, true);
+      return text(jarvis.planning.progress(workItemId));
     },
   );
 

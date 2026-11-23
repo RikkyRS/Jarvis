@@ -187,13 +187,21 @@ export class Notes {
         "",
       );
       out.push(
-        "| Passo | O que | Operações | Complexidade | Como se prova |",
-        "| --- | --- | --- | --- | --- |",
+        "| Passo | Feito? | O que | Operações | Complexidade | Como se prova |",
+        "| --- | --- | --- | --- | --- | --- |",
       );
-      for (const s of plan.plan.steps)
+      const progress = this.planning.progress(item.id);
+      for (const s of plan.plan.steps) {
+        const done = progress.steps.find((p) => p.id === s.id)?.done ? "✅" : "⬜";
         out.push(
-          `| ${cell(s.id)} | ${cell(s.title)} | ${cell(s.operations.join(", "))} | ${s.complexity} | ${cell(s.verification)} |`,
+          `| ${cell(s.id)} | ${done} | ${cell(s.title)} | ${cell(s.operations.join(", "))} | ${s.complexity} | ${cell(s.verification)} |`,
         );
+      }
+      for (const o of progress.outOfPlan) {
+        out.push(
+          `| — | ⚠️ | Mudança fora do plano: ${cell(o.type)} \`${cell(o.target)}\` | | | replanejar |`,
+        );
+      }
       out.push(
         "",
         "**Riscos e mitigação**",

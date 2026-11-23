@@ -34,6 +34,15 @@ export function openJarvis(root: string, extra: Partial<JarvisOptions> = {}): Ja
   return Jarvis.open({ root, human, notesDir, ...extra });
 }
 
+/** A run in the RUNNING state (after plan approval and human start), as the guard requires for any change. */
+export function startRunning(jarvis: Jarvis, workItemId: string) {
+  const run = jarvis.store.createRun(workItemId, agent);
+  for (const s of ["PREPARING", "AWAITING_EXECUTION_APPROVAL", "RUNNING"] as const) {
+    jarvis.store.transitionRun(run.id, s, human);
+  }
+  return jarvis.store.getRun(run.id)!;
+}
+
 export const cleanup = (...dirs: string[]): void => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
 };

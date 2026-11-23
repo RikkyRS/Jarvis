@@ -7,7 +7,15 @@ import type { Jarvis } from "../../src/app/jarvis.js";
 import { run, type Io } from "../../src/cli/index.js";
 import { exportSchemas, UnsupportedSchemaError } from "../../src/contracts/export.js";
 import { MCP_TOOL_NAMES, createMcpServer } from "../../src/mcp/server.js";
-import { cleanup, human, makeRepo, nextId, openJarvis, writeConfig } from "../helpers.js";
+import {
+  cleanup,
+  human,
+  makeRepo,
+  nextId,
+  openJarvis,
+  startRunning,
+  writeConfig,
+} from "../helpers.js";
 
 let root: string;
 let jarvis: Jarvis;
@@ -66,7 +74,7 @@ describe("MCP adapter", () => {
       title: "t",
       objective: "o",
     });
-    const runRow = jarvis.store.createRun(item.id, human);
+    const runRow = startRunning(jarvis, item.id);
     const client = await connect("claude");
     const id = nextId();
     const req = {
@@ -147,7 +155,7 @@ describe("CLI (human channel)", () => {
       ),
     ).toBe(0);
     const itemId = io.lines[0]!;
-    const runRow = jarvis.store.createRun(itemId, human);
+    const runRow = startRunning(jarvis, itemId);
     const out = await jarvis.request(
       { kind: "agent", id: "claude" },
       {

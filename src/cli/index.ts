@@ -37,6 +37,15 @@ export const HELP = `jarvis — deterministic engineering runtime
   status                          project, work items, approvals, audit integrity
   work create <title> --objective <text> [--accept <criterion>]...
   work list
+  work show <workItem>            requirements, decisions, runs
+  work status <workItem> <IN_PROGRESS|DELIVERED|REOPENED|CLOSED>
+  run create <workItem>           new attempt (PLANNED -> PREPARING)
+  run ready <runId>               preparation finished, waiting for your go (-> AWAITING_EXECUTION_APPROVAL)
+  run start <runId> <missionId>   YOU start execution: needs approved plan + enough Execution Budget
+  run submit <runId>              all plan steps proven -> AWAITING_REVIEW
+  run complete <runId>            after your review (a human decision)
+  run pause|cancel <runId>
+  run list <workItem>
   approvals [--watch]             operations waiting for a human decision, with full detail
   plan questions <workItem>       find every unknown that must be answered BEFORE implementing
   plan answer <workItem> <category> <text...>
@@ -44,6 +53,8 @@ export const HELP = `jarvis — deterministic engineering runtime
   plan submit <workItem> <plan.json>
   plan check <workItem>           is the plan complete? lists blockers
   plan show <workItem>
+  plan progress <workItem>        which steps are done and any change outside the plan
+  plan done <workItem> <step> <operationId...>   mark a step, proven by successful operations
   plan approve <workItem>         approve plan + token estimate (a human decision)
   notes path|write <workItem>     learning journal: where it is, or regenerate a note
   report <runId> --base <ref> --head <ref> [--summary <text>]   evidence-backed change report (markdown)
@@ -102,6 +113,33 @@ export async function run(
             io.out(`${i.id}  ${i.status.padEnd(11)} ${i.title}`);
           return 0;
         }
+        if (sub === "show" && rest[0]) {
+          const item = jarvis.store.getWorkItem(rest[0]);
+          if (!item) {
+            io.err("Unknown work item.");
+            return 1;
+          }
+          io.out(
+            JSON.stringify(
+              {
+                ...item,
+                runs: jarvis.store
+                  .listRuns(item.id)
+                  .map((r) => ({ id: r.id, sequence: r.sequence, status: r.status })),
+              },
+              null,
+              2,
+            ),
+          );
+          return 0;
+        }
+        if (sub === "status") {
+          const [id, to] = rest;
+          if (!id || !to)
+            return usage(io, "work status <workItem> <IN_PROGRESS|DELIVERED|REOPENED|CLOSED>");
+          io.out(jarvis.store.transitionWorkItem(id, to as never, human).status);
+          return 0;
+        }
         if (sub === "create") {
           const { values, positionals } = parseArgs({
             args: rest,
@@ -124,6 +162,49 @@ export async function run(
           return 0;
         }
         break;
+      }
+
+      case "run": {
+        const runUsage = "run create|ready|start|submit|complete|pause|cancel|list ...";
+        const [id, missionId] = rest;
+        if (!sub || !id) return usage(io, runUsage);
+        const store = jarvis.store;
+        if (sub === "list") {
+          for (const r of store.listRuns(id)) io.out(`${r.id}  #${r.sequence}  ${r.status}`);
+          return 0;
+        }
+        if (sub === "create") {
+          const created = store.createRun(id, human);
+          store.transitionRun(created.id, "PREPARING", human);
+          io.out(created.id);
+          return 0;
+        }
+        if (sub === "ready") {
+          io.out(store.transitionRun(id, "AWAITING_EXECUTION_APPROVAL", human).status);
+          return 0;
+        }
+        if (sub === "start") {
+          if (!missionId) return usage(io, "run start <runId> <missionId>");
+          io.out(jarvis.runtime.startExecution(id, missionId, human).status);
+          return 0;
+        }
+        if (sub === "submit") {
+          io.out(jarvis.runtime.submitForReview(id, human).status);
+          return 0;
+        }
+        if (sub === "complete") {
+          io.out(jarvis.runtime.complete(id, human).status);
+          return 0;
+        }
+        if (sub === "pause") {
+          io.out(jarvis.runtime.pause(id, human, "paused by human").status);
+          return 0;
+        }
+        if (sub === "cancel") {
+          io.out(store.transitionRun(id, "CANCELLED", human).status);
+          return 0;
+        }
+        return usage(io, runUsage);
       }
 
       case "approvals": {
@@ -308,6 +389,25 @@ export async function run(
             human,
           );
           io.out(`Plan v${stored.version} submitted. Estimate: ${stored.estimate} tokens.`);
+          return 0;
+        }
+        if (sub === "progress") {
+          const p = jarvis.planning.progress(wi);
+          for (const s of p.steps)
+            io.out(
+              `[${s.done ? "x" : " "}] ${s.id} ${s.title}${s.evidence.length ? `  (${s.evidence.join(", ")})` : ""}`,
+            );
+          for (const o of p.outOfPlan)
+            io.out(`  ! outside plan: ${o.type} ${o.target} (${o.operationId})`);
+          io.out(p.complete ? "Plan complete." : "Plan not complete.");
+          return p.complete ? 0 : 1;
+        }
+        if (sub === "done") {
+          const [step, ...ops] = more;
+          if (!step || ops.length === 0)
+            return usage(io, "plan done <workItem> <step> <operationId...>");
+          planning.markStep(wi, step, ops, human);
+          io.out("Step marked done.");
           return 0;
         }
         if (sub === "check" || sub === "show") {

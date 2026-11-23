@@ -105,6 +105,21 @@ export class WorkflowRuntime {
     };
     if (executed.n === 0)
       throw new DomainError("Nothing was executed successfully; there is no evidence to review.");
+    const run = this.store.getRun(runId);
+    if (this.planning && run && this.planning.currentPlan(run.workItemId)?.status === "APPROVED") {
+      const progress = this.planning.progress(run.workItemId);
+      const open = progress.steps.filter((s) => !s.done).map((s) => s.id);
+      if (open.length > 0) {
+        throw new DomainError(
+          `Plan steps not done: ${open.join(", ")}. Mark each with the operations that prove it.`,
+        );
+      }
+      if (progress.outOfPlan.length > 0) {
+        throw new DomainError(
+          `Changes outside the approved plan: ${progress.outOfPlan.map((o) => o.target).join(", ")}. Submit an amended plan for approval.`,
+        );
+      }
+    }
     return this.store.transitionRun(runId, "AWAITING_REVIEW", actor);
   }
 

@@ -2,7 +2,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Jarvis } from "../../src/app/jarvis.js";
-import { agent, cleanup, human, makeRepo, nextId, openJarvis, writeConfig } from "../helpers.js";
+import {
+  agent,
+  cleanup,
+  human,
+  makeRepo,
+  nextId,
+  openJarvis,
+  startRunning,
+  writeConfig,
+} from "../helpers.js";
 
 let root: string;
 let jarvis: Jarvis;
@@ -25,7 +34,7 @@ describe("JARVIS control files are not writable by agents", () => {
       title: "t",
       objective: "o",
     });
-    const run = jarvis.store.createRun(item.id, agent);
+    const run = startRunning(jarvis, item.id);
     const attempt = (type: string, target: string, parameters: Record<string, unknown> = {}) =>
       jarvis.request(agent, {
         operationId: nextId(),
@@ -61,7 +70,7 @@ describe("JARVIS control files are not writable by agents", () => {
       title: "t",
       objective: "o",
     });
-    const run = jarvis.store.createRun(item.id, agent);
+    const run = startRunning(jarvis, item.id);
     const read = await jarvis.request(agent, {
       operationId: nextId(),
       workItemId: item.id,

@@ -267,6 +267,20 @@ CREATE TABLE plans (
 `,
 });
 
+MIGRATIONS.push({
+  version: 6,
+  sql: `
+CREATE TABLE plan_steps (
+  plan_id TEXT NOT NULL REFERENCES plans(id),
+  step_id TEXT NOT NULL,
+  operation_ids TEXT NOT NULL,
+  marked_by TEXT NOT NULL,
+  marked_at TEXT NOT NULL,
+  PRIMARY KEY (plan_id, step_id)
+);
+`,
+});
+
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export function runMigrations(db: DatabaseSync): void {

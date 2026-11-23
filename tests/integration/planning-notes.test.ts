@@ -9,7 +9,16 @@ import { createMcpServer } from "../../src/mcp/server.js";
 import { applyRetention } from "../../src/persistence/retention.js";
 import { DomainError } from "../../src/persistence/repositories.js";
 import { estimatePlan, PlanSchema, type PlanInput } from "../../src/planning/index.js";
-import { agent, cleanup, human, makeRepo, nextId, openJarvis, writeConfig } from "../helpers.js";
+import {
+  agent,
+  cleanup,
+  human,
+  makeRepo,
+  nextId,
+  openJarvis,
+  startRunning,
+  writeConfig,
+} from "../helpers.js";
 
 let root: string;
 let jarvis: Jarvis;
@@ -50,6 +59,38 @@ const goodPlan = (over: Partial<PlanInput> = {}): PlanInput => ({
   assumptions: ["a.txt is the only file involved"],
   ...over,
 });
+
+/** A plan whose only step is a test run (no files, no Git changes). */
+const testOnlyPlan = (): PlanInput =>
+  goodPlan({
+    steps: [
+      {
+        id: "s1",
+        title: "Run checks",
+        operations: ["TEST_RUN"],
+        paths: [],
+        complexity: "LOW",
+        verification: "node exits 0",
+      },
+    ],
+    rollback: "",
+  });
+
+/** A plan whose only step reads a file. */
+const readOnlyPlan = (): PlanInput =>
+  goodPlan({
+    steps: [
+      {
+        id: "s1",
+        title: "Read a.txt",
+        operations: ["FILE_READ"],
+        paths: [],
+        complexity: "LOW",
+        verification: "evidence recorded",
+      },
+    ],
+    rollback: "",
+  });
 
 function newItem(criteria: string[] = ["a.txt is updated"]) {
   return jarvis.store.createWorkItem({
@@ -271,7 +312,7 @@ describe("learning journal", () => {
   it("[R-NOTES-01] writes an explainable note from facts at plan approval, completion and delivery", async () => {
     const item = newItem();
     clarify(item.id);
-    jarvis.planning.submitPlan(item.id, goodPlan(), agent);
+    jarvis.planning.submitPlan(item.id, testOnlyPlan(), agent);
     jarvis.planning.approvePlan(item.id, human);
 
     const file = jarvis.notes.fileFor(item);
@@ -281,7 +322,7 @@ describe("learning journal", () => {
     expect(note).toContain("Change a.txt safely");
     expect(note).toContain("scope");
     expect(note).toContain("(assumida por convenção)");
-    expect(note).toContain("| s1 | Edit a.txt |");
+    expect(note).toContain("| s1 | ⬜ | Run checks |");
     expect(note).toContain("Nenhum teste foi executado pelo Jarvis"); // never claims testing that did not happen
 
     const missionId = jarvis.budget.createMission({
@@ -300,13 +341,14 @@ describe("learning journal", () => {
     jarvis.store.transitionRun(runRow.id, "PREPARING", human);
     jarvis.store.transitionRun(runRow.id, "AWAITING_EXECUTION_APPROVAL", human);
     jarvis.runtime.startExecution(runRow.id, missionId, human);
-    await jarvis.runtime.run(runRow.id, {
+    const ran = await jarvis.runtime.run(runRow.id, {
       operationId: nextId(),
       requestedBy: agent,
       type: "TEST_RUN",
       target: ".",
       parameters: { command: "node", args: ["-e", "process.exit(0)"] },
     });
+    jarvis.planning.markStep(item.id, "s1", [ran.operationId], agent);
     jarvis.runtime.submitForReview(runRow.id, agent);
     jarvis.runtime.complete(runRow.id, human);
 
@@ -367,7 +409,7 @@ describe("retention", () => {
   it("[R-RETENTION-01] archives operational data only: audit, ledgers, plans and live runs are untouched", async () => {
     const item = newItem();
     clarify(item.id);
-    jarvis.planning.submitPlan(item.id, goodPlan(), agent);
+    jarvis.planning.submitPlan(item.id, readOnlyPlan(), agent);
     jarvis.planning.approvePlan(item.id, human);
     const missionId = jarvis.budget.createMission({
       projectId: jarvis.project.id,
@@ -386,12 +428,13 @@ describe("retention", () => {
     for (const s of ["PREPARING", "AWAITING_EXECUTION_APPROVAL"] as const)
       jarvis.store.transitionRun(finished.id, s, human);
     jarvis.runtime.startExecution(finished.id, missionId, human);
-    await jarvis.runtime.run(finished.id, {
+    const read = await jarvis.runtime.run(finished.id, {
       operationId: nextId(),
       requestedBy: agent,
       type: "FILE_READ",
       target: "a.txt",
     });
+    jarvis.planning.markStep(item.id, "s1", [read.operationId], agent);
     jarvis.runtime.submitForReview(finished.id, agent);
     jarvis.runtime.complete(finished.id, human);
     jarvis.store.transitionWorkItem(item.id, "IN_PROGRESS", human);
@@ -512,7 +555,7 @@ describe("adapters for planning", () => {
 
   it("CLI approvals --watch announces new requests; retention apply works", async () => {
     const item = newItem();
-    const runRow = jarvis.store.createRun(item.id, human);
+    const runRow = startRunning(jarvis, item.id);
     await jarvis.request(agent, {
       operationId: nextId(),
       workItemId: item.id,

@@ -241,6 +241,12 @@ export function checkPlan(
   if (ids.size !== plan.steps.length)
     blockers.push({ code: "DUPLICATE_STEP_IDS", detail: "Step ids must be unique." });
   for (const s of plan.steps) {
+    if (s.paths.length === 0 && s.operations.some((o) => o === "FILE_EDIT" || o === "GIT_STAGE")) {
+      blockers.push({
+        code: "STEP_WITHOUT_PATHS",
+        detail: `${s.id} edits files but declares no paths`,
+      });
+    }
     for (const d of s.dependsOn)
       if (!ids.has(d))
         blockers.push({ code: "UNKNOWN_DEPENDENCY", detail: `${s.id} depends on ${d}` });
@@ -548,6 +554,127 @@ export class Planning {
       fingerprint: String(r["fingerprint"]),
       submittedBy: String(r["submitted_by"]),
       approvedBy: (r["approved_by"] as string | null) ?? null,
+    };
+  }
+
+  // Progress ........................................................................................
+
+  private coveredByPaths(target: string, paths: readonly string[]): boolean {
+    return paths.some((p) => {
+      const clean = p.replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/$/, "");
+      return target === clean || target.startsWith(`${clean}/`);
+    });
+  }
+
+  private succeededOps(workItemId: string): { id: string; type: string; target: string }[] {
+    return this.db
+      .prepare(
+        `SELECT e.operation_id AS id, e.type AS type, e.target AS target FROM executions e
+           JOIN workflow_runs r ON r.id = e.workflow_run_id
+           WHERE r.work_item_id = ? AND e.outcome = 'SUCCEEDED' ORDER BY e.rowid`,
+      )
+      .all(workItemId) as { id: string; type: string; target: string }[];
+  }
+
+  /**
+   * A step is DONE only when the ledger holds successful operations of a type the step declared
+   * (and, for file edits, inside the paths it declared). The claim is checked, never trusted.
+   */
+  markStep(
+    workItemId: string,
+    stepId: string,
+    operationIds: readonly string[],
+    actor: Principal,
+  ): void {
+    const plan = this.currentPlan(workItemId);
+    if (!plan || plan.status !== "APPROVED")
+      throw new DomainError("Steps can only be marked on an approved plan.");
+    const step = plan.plan.steps.find((s) => s.id === stepId);
+    if (!step) throw new DomainError(`Unknown step ${stepId}.`);
+    if (operationIds.length === 0)
+      throw new DomainError("Provide the operation ids that prove the step.");
+    const ops = new Map(this.succeededOps(workItemId).map((o) => [o.id, o]));
+    const proofs = operationIds.map((id) => ops.get(id));
+    if (proofs.some((p) => !p))
+      throw new DomainError("Every operation id must be a successful operation of this Work Item.");
+    const real = proofs as { id: string; type: string; target: string }[];
+    if (!real.some((o) => step.operations.includes(o.type as never))) {
+      throw new DomainError(
+        `None of the operations is of a type declared by step ${stepId} (${step.operations.join(", ")}).`,
+      );
+    }
+    for (const o of real) {
+      if (
+        (o.type === "FILE_EDIT" || o.type === "GIT_STAGE") &&
+        !this.coveredByPaths(o.target, step.paths)
+      ) {
+        throw new DomainError(`${o.target} is outside the paths declared by step ${stepId}.`);
+      }
+    }
+    const item = this.item(workItemId);
+    inTransaction(this.db, () => {
+      this.db
+        .prepare(
+          `INSERT INTO plan_steps (plan_id, step_id, operation_ids, marked_by, marked_at) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(plan_id, step_id) DO UPDATE SET operation_ids = excluded.operation_ids, marked_by = excluded.marked_by, marked_at = excluded.marked_at`,
+        )
+        .run(
+          plan.id,
+          stepId,
+          JSON.stringify(operationIds),
+          `${actor.kind}:${actor.id}`,
+          this.clock().toISOString(),
+        );
+      this.audit.append({
+        projectId: item.projectId,
+        kind: "planning.step_done",
+        actor,
+        subject: plan.id,
+        payload: { stepId, operations: operationIds.length },
+      });
+    });
+    try {
+      this.onChange?.(workItemId);
+    } catch {
+      // Journal failures never block progress.
+    }
+  }
+
+  progress(workItemId: string): {
+    planVersion: number | null;
+    steps: { id: string; title: string; done: boolean; evidence: string[] }[];
+    outOfPlan: { operationId: string; type: string; target: string }[];
+    complete: boolean;
+  } {
+    const plan = this.currentPlan(workItemId);
+    if (!plan) return { planVersion: null, steps: [], outOfPlan: [], complete: false };
+    const marks = new Map(
+      (
+        this.db
+          .prepare("SELECT step_id, operation_ids FROM plan_steps WHERE plan_id = ?")
+          .all(plan.id) as Row[]
+      ).map((r) => [String(r["step_id"]), JSON.parse(String(r["operation_ids"])) as string[]]),
+    );
+    const steps = plan.plan.steps.map((s) => ({
+      id: s.id,
+      title: s.title,
+      done: marks.has(s.id),
+      evidence: marks.get(s.id) ?? [],
+    }));
+    const allPaths = plan.plan.steps.flatMap((s) => s.paths);
+    // Scope creep: file changes the approved plan never mentioned. Re-plan instead of drifting.
+    const outOfPlan = this.succeededOps(workItemId)
+      .filter(
+        (o) =>
+          (o.type === "FILE_EDIT" || o.type === "GIT_STAGE") &&
+          !this.coveredByPaths(o.target, allPaths),
+      )
+      .map((o) => ({ operationId: o.id, type: o.type, target: o.target }));
+    return {
+      planVersion: plan.version,
+      steps,
+      outOfPlan,
+      complete: steps.every((s) => s.done) && outOfPlan.length === 0,
     };
   }
 
