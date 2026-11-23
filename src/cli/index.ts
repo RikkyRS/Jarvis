@@ -1,10 +1,14 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { userInfo } from "node:os";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { ProviderAdapter } from "../ai/index.js";
 import { ClaudeCodeProvider, OllamaProvider } from "../ai/providers.js";
+import { commitMessage, prDescription, type Lang } from "../cycle/artifacts.js";
+import { checkDocumentDrift, renderDrift } from "../knowledge/drift.js";
+import { blindReview, collectDiff, renderBlindReview } from "../review/blind.js";
 import { Jarvis } from "../app/jarvis.js";
 import { privacyReport } from "../app/privacy.js";
 import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
@@ -73,6 +77,9 @@ export const HELP = `jarvis — deterministic engineering runtime
   audit verify
   inbox add <sender> <text...> [--conversation <id>]   put a forwarded client message in the inbox
   inbox process --mission <id> [--phase PREPARATION|EXECUTION]   classify new messages into proposals and check them against the contract
+  review blind <workItem> --base <ref> --head <ref> --mission <id>   blind review: approved plan + code only, advisory
+  cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]   commit message / PR description drafted from the approved plan
+  docs-drift [file...]            which claims in README/CLAUDE.md no longer match the repository
   privacy                         where client data can go, and what to fix (changes nothing)
   digest                          what is waiting for you (messages, proposals with their scope verdict, approvals)
   proposals                       task proposals waiting for your decision
@@ -437,6 +444,112 @@ export async function run(
           return 0;
         }
         return usage(io, "inbox add|process ...");
+      }
+
+      case "review": {
+        if (sub !== "blind")
+          return usage(io, "review blind <workItem> --base <ref> --head <ref> --mission <id>");
+        const [wi, ...flags] = rest;
+        const { values } = parseArgs({
+          args: flags,
+          options: {
+            base: { type: "string" },
+            head: { type: "string" },
+            mission: { type: "string" },
+          },
+        });
+        const item = wi ? jarvis.store.getWorkItem(wi) : undefined;
+        const stored = wi ? jarvis.planning.currentPlan(wi) : undefined;
+        if (
+          !item ||
+          !stored ||
+          stored.status !== "APPROVED" ||
+          !values.base ||
+          !values.head ||
+          !values.mission
+        )
+          return usage(
+            io,
+            "review blind <workItem> --base <ref> --head <ref> --mission <id>  (the plan must be approved)",
+          );
+        if (!jarvis.ai) {
+          io.err(NO_MODEL);
+          return 1;
+        }
+        const { paths, diff } = await collectDiff(
+          new HostRunner(["git"], { inheritHome: true }),
+          jarvis.root,
+          values.base,
+          values.head,
+        );
+        const result = await blindReview(
+          {
+            plan: stored.plan,
+            acceptanceCriteria: item.acceptanceCriteria,
+            changedPaths: paths,
+            diff,
+          },
+          {
+            runtime: jarvis.ai,
+            missionId: values.mission,
+            phase: "EXECUTION",
+            agent: "blind-reviewer",
+            workItemId: wi!,
+          },
+        );
+        io.out(renderBlindReview(result));
+        return result.verdict === "REPROVADO" ? 1 : 0;
+      }
+
+      case "cycle": {
+        if (sub !== "commit" && sub !== "pr")
+          return usage(io, "cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]");
+        const [wi, ...flags] = rest;
+        const { values } = parseArgs({
+          args: flags,
+          options: { base: { type: "string" }, head: { type: "string" }, lang: { type: "string" } },
+        });
+        const item = wi ? jarvis.store.getWorkItem(wi) : undefined;
+        const stored = wi ? jarvis.planning.currentPlan(wi) : undefined;
+        if (!item || !stored || !values.base || !values.head)
+          return usage(io, "cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]");
+        const { paths } = await collectDiff(
+          new HostRunner(["git"], { inheritHome: true }),
+          jarvis.root,
+          values.base,
+          values.head,
+        );
+        const input = {
+          plan: stored.plan,
+          workItemTitle: item.title,
+          acceptanceCriteria: item.acceptanceCriteria,
+          changedPaths: paths,
+        };
+        io.out(
+          sub === "commit"
+            ? commitMessage(input)
+            : prDescription(input, (values.lang === "en" ? "en" : "pt") as Lang),
+        );
+        if (sub === "pr") io.out("(draft: JARVIS does not commit, push or open the PR)");
+        return 0;
+      }
+
+      case "docs-drift": {
+        const files = [sub, ...rest].filter((f): f is string => Boolean(f));
+        const targets = files.length
+          ? files
+          : ["README.md", "CLAUDE.md"].filter((f) => existsSync(join(jarvis.root, f)));
+        if (targets.length === 0) {
+          io.out("No README.md or CLAUDE.md found.");
+          return 0;
+        }
+        let aged = 0;
+        for (const f of targets) {
+          const r = checkDocumentDrift(jarvis.root, f);
+          aged += r.aged.length;
+          io.out(renderDrift(r));
+        }
+        return aged > 0 ? 1 : 0;
       }
 
       case "privacy": {

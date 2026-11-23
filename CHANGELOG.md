@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Engineering method in the plan contract: certainties (with evidence), proposals and doubts (an open doubt blocks approval), an optional impact matrix (a row without a decision blocks), and a mandatory diagnosis for bug-fix plans.
+- Blind review (`src/review/blind.ts`, `jarvis review blind`): sees only the approved plan, criteria and code; deterministic check for steps whose paths were never touched; verdict computed from findings; advisory.
+- Cycle drafts (`jarvis cycle commit|pr`) from the approved plan; documentation drift (`jarvis docs-drift`).
+- Claude Code plugin (`plugin/`): `/jarvis:plan`, `dev`, `review`, `cycle`, `toc`, tested against the real MCP tools and CLI. Method inspired by Gabriel Tupi's personal harness, used with permission.
+
 - Docker isolation is checked against a live daemon in CI (job `docker-isolation`). It found a real bug: the container user is now the host uid instead of a fixed 1000.
 - Ollama adapter tested over real HTTP; opt-in live tests for Ollama and Claude Code. Clearer error when Claude Code cannot be started on Windows (use the native `claude.exe`).
 - Integration Resolver: advisory LLM interpretation (`src/integration/interpret.ts`), path-checked, severity capped below HIGH, never part of promotion.

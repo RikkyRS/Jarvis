@@ -257,3 +257,23 @@ A ideia central do JARVIS: ele faz o trabalho, tira as dúvidas com você e cont
 - **Fluxo:** mensagem do cliente (`inbox add` ou webhook) → `inbox process` classifica em propostas e confere cada uma contra o contrato do projeto → `digest` mostra o que espera por você → você confirma a proposta, aprova o plano e só então ele executa. O JARVIS pode **rascunhar** a resposta ao cliente, mas **não tem como enviar**.
 - **Teste real:** com o Ollama local (`qwen2.5:7b`) e um contrato de exemplo, "dois clientes no mesmo horário de novo" foi marcado `REPEATED` citando o histórico de 02/10, e "queremos um aplicativo móvel nativo" foi marcado `OUT_OF_SCOPE` citando a Cláusula 3. Levou cerca de 2,5 minutos em CPU para duas mensagens.
 - **Privacidade:** `docs/PRIVACIDADE.md` mostra o caminho do dado, o que o JARVIS garante e o que ele não controla (Meta, túnel, o seu computador). `jarvis privacy` confere o estado atual.
+
+---
+
+## 14. O método de engenharia
+
+Inspirado no _personal harness_ de Gabriel Tupi (com a permissão dele, reescrito de forma genérica). Ele cuida de **como pensar**; o JARVIS cuida de **o que pode acontecer**.
+
+| Ideia                       | Como virou código                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Certeza / Proposta / Dúvida | `certainties` (com evidência), `proposals`, `doubts`. Dúvida sem resolução bloqueia a aprovação do plano (`OPEN_DOUBTS`)            |
+| Bug: causa antes de editar  | `kind: BUGFIX` exige `diagnosis`; sem ela o plano não é aprovável (`NO_DIAGNOSIS`), e sem plano aprovado nada executa               |
+| Matriz de impacto           | `impactMatrix` opcional; linha sem decisão bloqueia (`MATRIX_ROW_WITHOUT_DECISION`)                                                 |
+| Revisor cego                | `jarvis review blind`: só plano, critérios e código; veredito calculado pelos achados; achado com referência inventada é descartado |
+| Auxiliar de ciclo           | `jarvis cycle commit                                                                                                                | pr`: rascunhos a partir do plano aprovado |
+| `toc`                       | `jarvis docs-drift`: o que ainda vale, o que envelheceu e o que não dá para verificar                                               |
+| Comandos `/plan`, `/dev`... | Plugin em `plugin/`, testado contra as ferramentas e comandos reais                                                                 |
+
+**Como explicar a diferença:** "o método dele é o que o agente _deveria_ fazer; o JARVIS é o que o agente _não consegue deixar de_ fazer". Quem dá o formato é o plano; quem impede o desvio é o runtime.
+
+Mais ideias em [`docs/ROADMAP.md`](ROADMAP.md).
