@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { userInfo } from "node:os";
 import { parseArgs } from "node:util";
 import { Jarvis } from "../app/jarvis.js";
 import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
 import { exportSchemas } from "../contracts/export.js";
+import { HostRunner } from "../gateway/index.js";
+import { applyRetention } from "../persistence/retention.js";
+import { buildChangeReport, renderChangeReport } from "../report/index.js";
 
 /**
  * Human CLI. This is the only channel that can approve operations, grant tokens or confirm
@@ -33,7 +37,17 @@ export const HELP = `jarvis — deterministic engineering runtime
   status                          project, work items, approvals, audit integrity
   work create <title> --objective <text> [--accept <criterion>]...
   work list
-  approvals                       operations waiting for a human decision, with full detail
+  approvals [--watch]             operations waiting for a human decision, with full detail
+  plan questions <workItem>       find every unknown that must be answered BEFORE implementing
+  plan answer <workItem> <category> <text...>
+  plan assume <workItem>          accept the stated convention for all low-impact questions
+  plan submit <workItem> <plan.json>
+  plan check <workItem>           is the plan complete? lists blockers
+  plan show <workItem>
+  plan approve <workItem>         approve plan + token estimate (a human decision)
+  notes path|write <workItem>     learning journal: where it is, or regenerate a note
+  report <runId> --base <ref> --head <ref> [--summary <text>]   evidence-backed change report (markdown)
+  retention apply --days <n>      archive old operational data (audit and ledgers are never touched)
   approve <approvalId> [--yes]    review the exact operation, then approve it
   reject <approvalId>
   mission create [--work-item <id>]
@@ -71,7 +85,11 @@ export async function run(
   }
 
   const human = humanPrincipal(env);
-  const jarvis = Jarvis.open({ root, human });
+  const jarvis = Jarvis.open({
+    root,
+    human,
+    ...(env["JARVIS_NOTES_DIR"] ? { notesDir: env["JARVIS_NOTES_DIR"] } : {}),
+  });
   try {
     switch (command) {
       case "status":
@@ -109,6 +127,28 @@ export async function run(
       }
 
       case "approvals": {
+        if (sub === "--watch") {
+          const { values } = parseArgs({
+            args: rest,
+            options: { interval: { type: "string" }, max: { type: "string" } },
+          });
+          const every = Number(values.interval ?? 2000);
+          const max = Number(values.max ?? Number.POSITIVE_INFINITY);
+          const seen = new Set<string>();
+          for (let i = 0; i < max; i += 1) {
+            for (const { approval, request } of jarvis.pendingApprovals()) {
+              if (approval.status !== "PENDING" || seen.has(approval.id)) continue;
+              seen.add(approval.id);
+              io.out(
+                `NEW ${approval.id}  ${approval.type} ${approval.target}  (by ${approval.requestedBy.id})`,
+              );
+              if (request) io.out(`  parameters: ${JSON.stringify(request.parameters)}`);
+              io.out(`  -> jarvis approve ${approval.id}`);
+            }
+            if (i + 1 < max) await new Promise((r) => setTimeout(r, every));
+          }
+          return 0;
+        }
         const pending = jarvis.pendingApprovals();
         if (pending.length === 0) io.out("No approvals waiting.");
         for (const { approval, request } of pending) {
@@ -232,8 +272,162 @@ export async function run(
         return 0;
       }
 
+      case "plan": {
+        const [wi, ...more] = rest;
+        const planUsage = "plan questions|answer|assume|submit|check|show|approve <workItem> ...";
+        if (!wi) return usage(io, planUsage);
+        const planning = jarvis.planning;
+        if (sub === "questions") {
+          for (const q of planning.generateQuestions(wi, human, jarvis.knowledge.load())) {
+            io.out(
+              `[${q.status}] (${q.impact}) ${q.category}: ${q.text}${q.status !== "OPEN" ? `\n    -> ${q.answer}` : ""}`,
+            );
+          }
+          return 0;
+        }
+        if (sub === "answer") {
+          const [category, ...text] = more;
+          if (!category || text.length === 0)
+            return usage(io, "plan answer <workItem> <category> <text...>");
+          planning.answer(wi, category, text.join(" "), human);
+          io.out("Recorded.");
+          return 0;
+        }
+        if (sub === "assume") {
+          io.out(
+            `${planning.assumeConventions(wi, human)} low-impact question(s) settled by convention.`,
+          );
+          return 0;
+        }
+        if (sub === "submit") {
+          const [file] = more;
+          if (!file) return usage(io, "plan submit <workItem> <plan.json>");
+          const stored = planning.submitPlan(
+            wi,
+            JSON.parse(readFileSync(file, "utf8")) as never,
+            human,
+          );
+          io.out(`Plan v${stored.version} submitted. Estimate: ${stored.estimate} tokens.`);
+          return 0;
+        }
+        if (sub === "check" || sub === "show") {
+          const verdict = planning.readiness(wi);
+          const current = planning.currentPlan(wi);
+          if (sub === "show" && current) {
+            io.out(
+              JSON.stringify(
+                {
+                  version: current.version,
+                  status: current.status,
+                  estimate: current.estimate,
+                  plan: current.plan,
+                },
+                null,
+                2,
+              ),
+            );
+          }
+          io.out(verdict.ready ? "READY: nothing blocks approval." : "NOT READY:");
+          for (const b of verdict.blockers) io.out(`  - ${b.code}: ${b.detail}`);
+          for (const w of verdict.warnings) io.out(`  ! ${w}`);
+          return verdict.ready ? 0 : 1;
+        }
+        if (sub === "approve") {
+          const current = planning.currentPlan(wi);
+          if (!current) {
+            io.err("No plan submitted.");
+            return 1;
+          }
+          io.out(`Plan v${current.version}: ${current.plan.summary}`);
+          io.out(`Steps: ${current.plan.steps.length}  Estimated tokens: ${current.estimate}`);
+          if (
+            !more.includes("--yes") &&
+            !(await io.confirm("Approve this plan and its token estimate?"))
+          ) {
+            io.out("Not approved.");
+            return 1;
+          }
+          planning.approvePlan(wi, human);
+          io.out(
+            "Plan approved. Grant an EXECUTION budget at least as large as the estimate, then start execution.",
+          );
+          return 0;
+        }
+        return usage(io, planUsage);
+      }
+
+      case "notes": {
+        if (sub === "path") {
+          io.out(jarvis.notes.dir);
+          return 0;
+        }
+        if (sub === "write" && rest[0]) {
+          io.out(jarvis.refreshNotes(rest[0]) ?? "Could not write the note (see audit).");
+          return 0;
+        }
+        return usage(io, "notes path | notes write <workItem>");
+      }
+
+      case "report": {
+        const { values } = parseArgs({
+          args: rest,
+          options: {
+            base: { type: "string" },
+            head: { type: "string" },
+            summary: { type: "string" },
+          },
+        });
+        const run = sub ? jarvis.store.getRun(sub) : undefined;
+        if (!run || !values.base || !values.head) {
+          return usage(io, "report <runId> --base <ref> --head <ref> [--summary <text>]");
+        }
+        const item = jarvis.store.getWorkItem(run.workItemId)!;
+        const report = await buildChangeReport({
+          runner: new HostRunner(["git"], { inheritHome: true }),
+          repoRoot: jarvis.root,
+          db: jarvis.db,
+          workItem: item,
+          run,
+          base: values.base,
+          head: values.head,
+          summary: values.summary ?? item.objective,
+        });
+        io.out(renderChangeReport(report));
+        return 0;
+      }
+
+      case "retention": {
+        const retentionUsage = "retention apply --days <n>";
+        if (sub !== "apply") return usage(io, retentionUsage);
+        const { values } = parseArgs({
+          args: rest,
+          options: { days: { type: "string" }, yes: { type: "boolean" } },
+        });
+        const days = Number(values.days);
+        if (!Number.isFinite(days) || days < 1) return usage(io, retentionUsage);
+        if (
+          !values.yes &&
+          !(await io.confirm(
+            `Archive operational data older than ${days} day(s)? Audit and ledgers are kept.`,
+          ))
+        ) {
+          return 1;
+        }
+        io.out(
+          JSON.stringify(
+            applyRetention(jarvis.db, jarvis.audit, {
+              projectId: jarvis.project.id,
+              olderThanDays: days,
+            }),
+            null,
+            2,
+          ),
+        );
+        return 0;
+      }
+
       case "scan": {
-        const { claims, refreshed, removed } = jarvis.knowledge.scan();
+        const { claims, refreshed, removed } = jarvis.scan();
         io.out(
           `${claims.length} claims. Re-analyzed: ${refreshed.join(", ") || "nothing"}. Dropped: ${removed.join(", ") || "nothing"}.`,
         );

@@ -231,6 +231,42 @@ ALTER TABLE approvals ADD COLUMN request_json TEXT;
 `,
 });
 
+MIGRATIONS.push({
+  version: 5,
+  sql: `
+CREATE TABLE clarification_questions (
+  id TEXT PRIMARY KEY,
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  category TEXT NOT NULL,
+  text TEXT NOT NULL,
+  impact TEXT NOT NULL CHECK (impact IN ('MATERIAL','LOW')),
+  convention_default TEXT,
+  status TEXT NOT NULL CHECK (status IN ('OPEN','ANSWERED','ASSUMED')),
+  answer TEXT,
+  answered_by TEXT,
+  created_at TEXT NOT NULL,
+  answered_at TEXT,
+  UNIQUE (work_item_id, category)
+);
+
+CREATE TABLE plans (
+  id TEXT PRIMARY KEY,
+  work_item_id TEXT NOT NULL REFERENCES work_items(id),
+  version INTEGER NOT NULL,
+  scope_hash TEXT NOT NULL,
+  plan_json TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('DRAFT','APPROVED','SUPERSEDED')),
+  estimate_tokens INTEGER NOT NULL,
+  submitted_by TEXT NOT NULL,
+  approved_by TEXT,
+  approved_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE (work_item_id, version)
+);
+`,
+});
+
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export function runMigrations(db: DatabaseSync): void {

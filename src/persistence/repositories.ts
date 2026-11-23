@@ -254,7 +254,25 @@ export class DomainStore {
     });
   }
 
+  /** Called after a Work Item status transition has committed (e.g. to refresh the learning journal). */
+  onWorkItemTransition?: (workItemId: string) => void;
+
   transitionWorkItem(
+    id: string,
+    to: WorkItemStatus,
+    actor: Principal,
+    expectedVersion?: number,
+  ): WorkItem {
+    const result = this.applyWorkItemTransition(id, to, actor, expectedVersion);
+    try {
+      this.onWorkItemTransition?.(id);
+    } catch {
+      // Journal failures never undo or block a committed transition.
+    }
+    return result;
+  }
+
+  private applyWorkItemTransition(
     id: string,
     to: WorkItemStatus,
     actor: Principal,

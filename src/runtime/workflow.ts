@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import type { OperationRequestInput, Principal, Trust, WorkflowRun } from "../domain/contracts.js";
 import type { ExecutionGateway, ExecutionResult } from "../gateway/index.js";
 import type { MissionBudget } from "../budget/index.js";
+import type { Planning } from "../planning/index.js";
 import type { DomainStore } from "../persistence/repositories.js";
 import { DomainError } from "../persistence/repositories.js";
 
@@ -25,6 +26,9 @@ export class WorkflowRuntime {
     /** Decided by the human-owned project configuration; callers cannot override it. */
     private readonly trust: Trust = "UNTRUSTED",
     private readonly budget?: MissionBudget,
+    /** When set, execution also requires an approved, still-ready plan whose estimate fits the allowance. */
+    private readonly planning?: Planning,
+    private readonly onChange?: (workItemId: string) => void,
   ) {}
 
   /**
@@ -40,6 +44,12 @@ export class WorkflowRuntime {
       throw new DomainError("The Mission has no authorized Execution Budget.");
     if (status.level === "EXHAUSTED")
       throw new DomainError("The Execution Budget is exhausted; an explicit grant is required.");
+    if (this.planning) {
+      const run = this.store.getRun(runId);
+      if (!run) throw new DomainError(`Unknown workflow run ${runId}.`);
+      const blocker = this.planning.executionBlocker(run.workItemId, status.allowance);
+      if (blocker) throw new DomainError(blocker);
+    }
     return this.store.transitionRun(runId, "RUNNING", actor);
   }
 
@@ -104,7 +114,13 @@ export class WorkflowRuntime {
       throw new DomainError("Only a human can complete a reviewed run.");
     const failures = this.unresolvedFailures(runId);
     if (failures.length > 0) throw new UnresolvedFailureError(failures);
-    return this.store.transitionRun(runId, "COMPLETED", reviewer);
+    const done = this.store.transitionRun(runId, "COMPLETED", reviewer);
+    try {
+      this.onChange?.(done.workItemId);
+    } catch {
+      // Journal failures never undo a completed run.
+    }
+    return done;
   }
 
   /** Pause with a durable checkpoint, e.g. when the token budget is exhausted. */

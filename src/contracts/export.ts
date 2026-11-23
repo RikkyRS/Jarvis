@@ -14,6 +14,7 @@ import {
   IntegrationReportSchema,
 } from "../integration/resolver.js";
 import { ClaimSchema } from "../knowledge/index.js";
+import { PlanSchema } from "../planning/index.js";
 
 /** Bump when an exported contract changes incompatibly. The committed snapshot guards this. */
 export const CONTRACT_VERSION = "1.0.0";
@@ -25,6 +26,7 @@ const CONTRACTS: Record<string, ZodTypeAny> = {
   WorkItem: WorkItemSchema,
   WorkflowRun: WorkflowRunSchema,
   Claim: ClaimSchema,
+  Plan: PlanSchema,
   Association: AssociationSchema,
   CheckResult: CheckResultSchema,
   Finding: FindingSchema,

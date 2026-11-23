@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { Jarvis } from "../app/jarvis.js";
 import { BudgetPhaseSchema, OperationTypeSchema, type Principal } from "../domain/contracts.js";
+import { PlanSchema } from "../planning/index.js";
 
 /**
  * MCP adapter for AI clients (Claude Code, Cursor, VS Code...). It is deliberately narrow:
@@ -17,6 +18,9 @@ export const MCP_TOOL_NAMES = [
   "jarvis_pending_approvals",
   "jarvis_budget_status",
   "jarvis_project_knowledge",
+  "jarvis_open_questions",
+  "jarvis_submit_plan",
+  "jarvis_plan_readiness",
 ] as const;
 
 const text = (value: unknown, isError = false) => ({
@@ -156,6 +160,76 @@ export function createMcpServer(jarvis: Jarvis, clientId = "client"): McpServer 
           validity,
         })),
       ),
+  );
+
+  server.registerTool(
+    "jarvis_open_questions",
+    {
+      description:
+        "Generate (idempotently) and list the clarification questions for a Work Item. Material questions must be answered by the human before a plan can be approved; you cannot answer them.",
+      inputSchema: { workItemId: z.string() },
+    },
+    async ({ workItemId }) => {
+      try {
+        const item = jarvis.store.getWorkItem(workItemId);
+        if (!item || item.projectId !== jarvis.project.id)
+          return text({ error: "NOT_FOUND" }, true);
+        const questions = jarvis.planning.generateQuestions(
+          workItemId,
+          principal,
+          jarvis.knowledge.load(),
+        );
+        return text(
+          questions.map((q) => ({
+            category: q.category,
+            impact: q.impact,
+            status: q.status,
+            question: q.text,
+            answer: q.answer,
+          })),
+        );
+      } catch (error) {
+        return text({ error: error instanceof Error ? error.message : String(error) }, true);
+      }
+    },
+  );
+
+  server.registerTool(
+    "jarvis_submit_plan",
+    {
+      description:
+        "Submit a DRAFT execution plan for a Work Item (steps with verification, risks with mitigation, test strategy, rollback). Only a human can approve it, and execution cannot start without that approval.",
+      inputSchema: { workItemId: z.string(), plan: PlanSchema },
+    },
+    async ({ workItemId, plan }) => {
+      try {
+        const item = jarvis.store.getWorkItem(workItemId);
+        if (!item || item.projectId !== jarvis.project.id)
+          return text({ error: "NOT_FOUND" }, true);
+        const stored = jarvis.planning.submitPlan(workItemId, plan, principal);
+        return text({
+          version: stored.version,
+          status: stored.status,
+          estimateTokens: stored.estimate,
+          readiness: jarvis.planning.readiness(workItemId),
+        });
+      } catch (error) {
+        return text({ error: error instanceof Error ? error.message : String(error) }, true);
+      }
+    },
+  );
+
+  server.registerTool(
+    "jarvis_plan_readiness",
+    {
+      description: "Why the current plan is or is not ready for approval and execution.",
+      inputSchema: { workItemId: z.string() },
+    },
+    async ({ workItemId }) => {
+      const item = jarvis.store.getWorkItem(workItemId);
+      if (!item || item.projectId !== jarvis.project.id) return text({ error: "NOT_FOUND" }, true);
+      return text(jarvis.planning.readiness(workItemId));
+    },
   );
 
   return server;

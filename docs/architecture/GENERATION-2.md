@@ -543,3 +543,19 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
 - Whether JARVIS may later resolve simple low-risk tasks automatically (today: propose only).
 - LLM-assisted interpretation inside the Integration Resolver; PR metadata conventions beyond explicit `wi_…` ids.
 - Mission scope versioning UI and automatic budget estimation (grants are recorded and enforced; estimates are human-entered).
+
+### Update — 2026-11-23 (planning gate, learning journal, retention)
+
+- **Planning gate** (`src/planning`): a fixed category checklist generates the questions (MATERIAL vs LOW); plans must be
+  complete (verification per step, risks with mitigation, tests, rollback, no cycles) and a human approves plan and
+  estimate. Execution cannot start without it. Material questions can only be answered by a human; LOW ones may be settled
+  by a recorded convention.
+- **Learning journal** (`src/notes`): one Markdown note per Work Item, regenerated from recorded facts (decisions with their
+  reasons, plan, what ran, real test evidence, token cost, an explanation script and likely questions). Default folder
+  `~/Jarvis-Notas/<project>`.
+- **Estimation**: complexity-based with a 25% margin, calibrated by actual-versus-reserved history (needs 5+ samples).
+- **Retention** (`src/persistence/retention.ts`): archives operational payloads keeping hashes; audit, ledgers, plans and
+  live runs are untouched.
+- **Operations**: `approvals --watch`, `report` (markdown change report).
+- Closed from "Still open": retention of operational data; automatic budget estimation. Still open: archive format beyond
+  in-place hashing.

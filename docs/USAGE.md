@@ -61,6 +61,44 @@ Typical loop for a high-risk operation (commit, push, merge, worktree removal):
 `trustedProject` defaults to `false`: tests and scripts are blocked unless a container runner is configured.
 `requireApproval` can only make things stricter. Add `.jarvis/` to `.gitignore`.
 
+## Planning: get it right in one pass
+
+Before any implementation the work goes through a gate:
+
+```bash
+jarvis plan questions <workItem>        # walks a fixed checklist (scope, data, security, compatibility, dependencies are MATERIAL)
+jarvis plan answer <workItem> data "não altera esquema"
+jarvis plan assume <workItem>           # accept stated conventions for LOW-impact questions, recorded as such
+jarvis plan submit <workItem> plan.json # or an agent calls jarvis_submit_plan
+jarvis plan check <workItem>            # lists every blocker
+jarvis plan approve <workItem>          # you approve the plan AND its token estimate
+```
+
+Execution can only start (`startExecution`) with a human-approved plan that is still current (changing requirements
+invalidates it) and an Execution allowance at least as large as the estimate. The estimate comes from step complexity plus
+a 25% margin and recalibrates from the real usage history of this project.
+
+## Learning journal
+
+Every plan approval, completed run and Work Item transition regenerates a Markdown note from recorded facts. Default
+folder: `~/Jarvis-Notas/<project>/` (override with `notesDir` in `.jarvis/config.json` or `JARVIS_NOTES_DIR`).
+`INDEX.md` lists the notes and `PROJETO.md` is the stack overview from `jarvis scan`. Each note ends with a ~1 minute
+script to explain the work and the questions you may be asked. Secrets are redacted and a journal failure never blocks
+the work.
+
+```bash
+jarvis notes path
+jarvis notes write <workItem>
+```
+
+## Maintenance
+
+```bash
+jarvis approvals --watch                        # announces new approval requests as they arrive
+jarvis report <runId> --base main --head HEAD   # markdown change report, ready for a PR comment
+jarvis retention apply --days 90                # archives old operational data; audit and token ledgers are never touched
+```
+
 ## Channel intake (WhatsApp and others)
 
 `Jarvis.intake(...)` ingests messages idempotently, groups related ones with an AI provider, flags duplicates of

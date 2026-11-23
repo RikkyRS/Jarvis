@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { AiRuntime, type AiRuntimeConfig, type ProviderAdapter } from "../ai/index.js";
@@ -21,6 +22,8 @@ import {
 import { defaultHandlers } from "../git/handlers.js";
 import { Intake, type IntakeConfig } from "../intake/index.js";
 import { KnowledgeStore } from "../knowledge/index.js";
+import { Notes } from "../notes/index.js";
+import { Planning } from "../planning/index.js";
 import { AuditLog } from "../persistence/audit.js";
 import { openDatabase } from "../persistence/db.js";
 import { DomainStore } from "../persistence/repositories.js";
@@ -55,6 +58,8 @@ export const ProjectConfigSchema = z
       .positive()
       .default(15 * 60 * 1000),
     requireApproval: z.array(z.string()).default([]),
+    /** Where the learning journal is written. Default: ~/Jarvis-Notas/<project>. */
+    notesDir: z.string().optional(),
   })
   .strict();
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -71,6 +76,8 @@ export type JarvisOptions = {
   ai?: AiRuntimeConfig;
   clock?: Clock;
   dbFile?: string;
+  /** Overrides the learning journal folder (tests, custom layouts). */
+  notesDir?: string;
 };
 
 export type RequestOutcome =
@@ -95,6 +102,8 @@ export class Jarvis {
   readonly scheduler: Scheduler;
   readonly runtime: WorkflowRuntime;
   readonly knowledge: KnowledgeStore;
+  readonly planning: Planning;
+  readonly notes: Notes;
   readonly ai: AiRuntime | undefined;
   readonly project: Project;
   readonly config: ProjectConfig;
@@ -123,6 +132,10 @@ export class Jarvis {
         root: this.root,
         createdBy: options.human,
       });
+    this.planning = new Planning(this.db, this.audit, this.store, clock, (id) =>
+      this.refreshNotes(id),
+    );
+    this.store.onWorkItemTransition = (id) => this.refreshNotes(id);
     this.approvals = new ApprovalService(this.db, this.audit, clock);
     this.gateway = new ExecutionGateway({
       projectId: this.project.id,
@@ -150,8 +163,18 @@ export class Jarvis {
       this.gateway,
       this.config.trustedProject ? "TRUSTED" : "UNTRUSTED",
       this.budget,
+      this.planning,
+      (id) => this.refreshNotes(id),
     );
     this.knowledge = new KnowledgeStore(this.root);
+    const notesDir =
+      options.notesDir ??
+      this.config.notesDir ??
+      join(homedir(), "Jarvis-Notas", this.project.name.replace(/[^A-Za-z0-9._-]+/g, "-"));
+    this.notes = new Notes(this.db, this.store, this.planning, this.knowledge, notesDir, {
+      id: this.project.id,
+      name: this.project.name,
+    });
     this.ai = options.providers?.length
       ? new AiRuntime(options.providers, this.budget, this.scheduler, options.ai)
       : undefined;
@@ -159,6 +182,30 @@ export class Jarvis {
 
   static open(options: JarvisOptions): Jarvis {
     return new Jarvis(options);
+  }
+
+  /** Regenerates the learning note for a Work Item. A journal failure is audited, never fatal. */
+  refreshNotes(workItemId: string): string | null {
+    try {
+      return this.notes.refresh(workItemId);
+    } catch (error) {
+      this.audit.append({
+        projectId: this.project.id,
+        kind: "notes.failed",
+        actor: { kind: "system", id: "notes" },
+        subject: workItemId,
+        payload: { error: error instanceof Error ? error.message : String(error) },
+      });
+      return null;
+    }
+  }
+
+  /** Project analysis plus a refreshed overview in the journal. */
+  scan(): ReturnType<KnowledgeStore["scan"]> {
+    const result = this.knowledge.scan();
+    this.notes.writeProjectOverview();
+    this.notes.writeIndex();
+    return result;
   }
 
   close(): void {

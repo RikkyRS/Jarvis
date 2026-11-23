@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Jarvis } from "../../src/app/jarvis.js";
@@ -206,10 +207,18 @@ describe("channel intake", () => {
       err: (l: string) => void lines.push(l),
       confirm: async () => true,
     };
-    expect(await run(["proposals"], io, root, { JARVIS_USER: "rikky" })).toBe(0);
+    expect(
+      await run(["proposals"], io, root, {
+        JARVIS_USER: "rikky",
+        JARVIS_NOTES_DIR: join(root, ".jarvis", "notes"),
+      }),
+    ).toBe(0);
     expect(lines.join("\n")).toContain("Filtro por vendedor");
     expect(
-      await run(["proposal", "confirm", proposals[0]!.id], io, root, { JARVIS_USER: "rikky" }),
+      await run(["proposal", "confirm", proposals[0]!.id], io, root, {
+        JARVIS_USER: "rikky",
+        JARVIS_NOTES_DIR: join(root, ".jarvis", "notes"),
+      }),
     ).toBe(0);
     expect(jarvis.store.listWorkItems(jarvis.project.id).map((i) => i.title)).toEqual([
       "Filtro por vendedor",

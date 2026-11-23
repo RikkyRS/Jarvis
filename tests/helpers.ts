@@ -29,7 +29,9 @@ export function writeConfig(root: string, config: Record<string, unknown>): void
 }
 
 export function openJarvis(root: string, extra: Partial<JarvisOptions> = {}): Jarvis {
-  return Jarvis.open({ root, human, ...extra });
+  // Never write the learning journal into the real home folder during tests.
+  const notesDir = join(root, ".jarvis", "notes");
+  return Jarvis.open({ root, human, notesDir, ...extra });
 }
 
 export const cleanup = (...dirs: string[]): void => {

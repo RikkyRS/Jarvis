@@ -539,6 +539,134 @@
       "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     },
+    "Plan": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,40}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "FILE_READ",
+                    "GIT_INSPECT",
+                    "FILE_EDIT",
+                    "TEST_RUN",
+                    "GIT_STAGE",
+                    "GIT_COMMIT",
+                    "GIT_PUSH",
+                    "GIT_MERGE",
+                    "GIT_WORKTREE_ADD",
+                    "GIT_WORKTREE_REMOVE",
+                    "GIT_FORCE_PUSH",
+                    "GIT_RESET_HARD",
+                    "GIT_CLEAN"
+                  ]
+                },
+                "minItems": 1
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "complexity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 300
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "operations",
+              "complexity",
+              "verification"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 60
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "mitigation": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "mitigation"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "testStrategy": {
+          "type": "string",
+          "default": ""
+        },
+        "rollback": {
+          "type": "string",
+          "default": ""
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "summary",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
     "Association": {
       "type": "object",
       "properties": {

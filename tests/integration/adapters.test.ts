@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -142,7 +143,7 @@ describe("CLI (human channel)", () => {
         ],
         io,
         root,
-        { JARVIS_USER: "rikky" },
+        { JARVIS_USER: "rikky", JARVIS_NOTES_DIR: join(root, ".jarvis", "notes") },
       ),
     ).toBe(0);
     const itemId = io.lines[0]!;
@@ -161,23 +162,32 @@ describe("CLI (human channel)", () => {
     if (out.status !== "APPROVAL_REQUIRED") throw new Error("expected gate");
 
     const list = memoryIo();
-    await run(["approvals"], list, root, { JARVIS_USER: "rikky" });
+    await run(["approvals"], list, root, {
+      JARVIS_USER: "rikky",
+      JARVIS_NOTES_DIR: join(root, ".jarvis", "notes"),
+    });
     expect(list.lines.join("\n")).toContain("diffHash");
 
     const declined = memoryIo(false);
-    expect(await run(["approve", out.approvalId], declined, root, { JARVIS_USER: "rikky" })).toBe(
-      1,
-    );
+    expect(
+      await run(["approve", out.approvalId], declined, root, {
+        JARVIS_USER: "rikky",
+        JARVIS_NOTES_DIR: join(root, ".jarvis", "notes"),
+      }),
+    ).toBe(1);
     expect(jarvis.approvals.get(out.approvalId)?.status).toBe("PENDING");
-    expect(await run(["reject", out.approvalId], memoryIo(), root, { JARVIS_USER: "rikky" })).toBe(
-      0,
-    );
+    expect(
+      await run(["reject", out.approvalId], memoryIo(), root, {
+        JARVIS_USER: "rikky",
+        JARVIS_NOTES_DIR: join(root, ".jarvis", "notes"),
+      }),
+    ).toBe(0);
     expect(jarvis.approvals.get(out.approvalId)?.status).toBe("REJECTED");
   });
 
   it("manages budget, audit and unknown commands", async () => {
     const io = memoryIo();
-    const env = { JARVIS_USER: "rikky" };
+    const env = { JARVIS_USER: "rikky", JARVIS_NOTES_DIR: join(root, ".jarvis", "notes") };
     await run(["mission", "create"], io, root, env);
     const missionId = io.lines[0]!;
     expect(
