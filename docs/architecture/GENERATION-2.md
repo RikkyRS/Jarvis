@@ -408,15 +408,97 @@ This document is the persistent architecture source of truth for the Generation 
 - Security defaults to local-first, least privilege, deny-by-default execution, isolated processes, minimal environment, and mandatory safeguards that project configuration cannot weaken.
 - Change reports contain execution stages, a compact summary of the technical changes and why, and a concise interview-oriented learning note. The durable chronological Mission history preserves decisions, evidence, tests, and outcomes; no uncertainty range or lengthy estimate justification is required.
 
+### Confirmed technical design decisions — 2026-11-23
+
+The user selected option C for all seven technical design questions. These choices are confirmed product/architecture decisions and supersede any conflicting preliminary proposal in this document.
+
+#### 1. Project Admin grant authorization — dual authorization
+
+A Project Admin may authorize an additional Mission token grant only when both conditions hold:
+
+- The administrator has an explicit, deterministic project-level permission to authorize Mission grants.
+- The Mission Owner has explicitly authorized that administrator to exercise this grant authority for the relevant Mission.
+
+The two checks are cumulative, not alternatives. Neither an administrator's general project role nor an AI agent's interpretation is sufficient by itself. Authorization must be checked at grant time and recorded with the grant/audit event. An administrator cannot grant this authority to themselves. Exact delegation scope, expiry, revocation, and behavior when the Mission Owner or administrator loses access remain implementation-level details to specify.
+
+#### 2. PR and contribution intake — hybrid association
+
+The Integration Resolver should automatically discover and associate contributions when reliable metadata and Git history support the relationship. Signals may include explicit Work Item identifiers in branch names, commit messages, PR metadata, recorded Workflow Run/Operation provenance, and known branch ancestry.
+
+- Confident, unambiguous associations may be proposed automatically with their evidence.
+- Ambiguous, conflicting, or missing associations require user confirmation.
+- The system must not silently assign a PR or commit to a Work Item based only on a weak heuristic.
+- Preserve the distinction between a discovered association and a user-confirmed association.
+- PR creation remains outside automatic behavior in the first generation.
+
+The detailed metadata conventions, confidence/ambiguity rules, and supported merge/cherry-pick constraints remain to be specified.
+
+#### 3. Execution isolation — hybrid local restrictions and containers
+
+Use a hybrid execution model:
+
+- Trusted, narrowly scoped operations may run as local processes under the Execution Gateway with canonical path checks, allowlisted tools, minimal environment, bounded input/output, time/resource limits, and explicit policy.
+- Untrusted or insufficiently trusted project code (including package scripts, test runners, build scripts, and arbitrary repository-provided executables) must run inside an isolated container with restricted mounts, minimal credentials, bounded resources, and network access disabled or explicitly allowlisted by policy.
+- Trust classification must be deterministic and based on provenance/policy, never solely on an agent's claim.
+- If the required isolation boundary is unavailable, the Gateway must not silently downgrade an untrusted execution to an unrestricted host process; it must block or request an explicitly supported safe alternative.
+- Containerization is an isolation layer, not proof of complete security. Host filesystem exposure, Docker socket access, capabilities, mounts, network, and image provenance must be constrained.
+
+#### 4. Parallelism — hierarchical concurrency limits
+
+Concurrency must be bounded at multiple scopes:
+
+- Global runtime limit.
+- Per-Mission limit.
+- Per-provider/model limit.
+
+Limits are configurable and enforced centrally by the scheduler/provider admission path. The scheduler must account for provider rate limits, available resources, Mission priorities, and token reservations. Concurrency limits do not grant additional token budget: all parallel LLM calls still reserve against the same authorized Mission phase allowance atomically. A limit at any applicable scope takes precedence; work waits or is rescheduled rather than bypassing the limit.
+
+Exact default numeric concurrency values and fairness/priority policy are not yet fixed and must be configurable rather than invented as product guarantees.
+
+#### 5. Technical review — layered, risk-adaptive review
+
+Review combines three layers:
+
+1. Deterministic checks: formatting, linting, type checking, tests, static checks, contract checks, and Git/diff inspection as applicable.
+2. An independent reviewer agent that receives the requirements, relevant source/diff, and evidence, and reports findings without relying on the implementation agent's self-assessment.
+3. Additional tests and deeper verification selected according to deterministic risk classification and the impact of the change.
+
+The reviewer agent is advisory and cannot approve its own findings, grant operational permissions, or replace the Integration Resolver's global candidate-branch assessment. Risk determines review depth; required security and acceptance checks cannot be skipped merely because an agent recommends doing so. Findings must link to source/evidence and be independently verified where practical.
+
+#### 6. Audit history — permanent critical events and retained operational data
+
+Use two retention classes:
+
+- **Critical audit events** are permanent and append-only, including grants and grant authorization, permission/delegation changes, approvals and revocations, protected operations, security-relevant policy decisions, integration/promotion decisions, and audit-significant state transitions. The runtime must not offer ordinary deletion or mutation of these records.
+- **Operational data** such as transient execution details, verbose diagnostics, temporary artifacts, and superseded intermediate state may follow a configurable retention and archival policy.
+
+Archival or expiry of operational data must not erase critical audit events, break required provenance, or make retained decisions unverifiable. Where operational payloads are archived or expired, preserve the necessary identifiers, hashes, timestamps, relationships, and audit references. Exact retention periods, archive format, and privacy/deletion handling remain to be specified.
+
+#### 7. Contract validation — Zod internally, JSON Schema externally
+
+Zod is the canonical source for runtime TypeScript contracts and validation inside the JARVIS codebase. Export JSON Schema representations for external interoperability, including MCP/client integrations and documentation.
+
+- Internal application/domain boundaries validate with the canonical Zod schemas.
+- Exported JSON Schema is generated from those schemas rather than maintained as a divergent second source of truth.
+- Contract exports must be versioned and tested for compatibility.
+- Unsupported Zod constructs or export limitations must be detected; do not silently publish an incomplete schema.
+- External inputs are validated again at the Application API boundary even if the client claims to have validated them.
+
+#### Consequences for implementation
+
+These decisions affect the permission model, Execution Gateway, scheduler, review pipeline, audit storage, and contract tooling. They must be reflected in domain contracts, persistence constraints, threat model, and acceptance tests before implementation is considered complete.
+
 ### Proposed, not yet finalized
 
 - Specific model-routing and context-compaction algorithms.
-- Detailed project role/permission administration UX and exact authorization policy for project administrators.
+- Detailed project role/permission administration UX, delegation scope, expiry/revocation, and loss-of-access behavior for Mission grant authorization.
+- Exact concurrency defaults/fairness policy, trust-classification rules and container profiles, audit retention periods/archive format, and PR association metadata/ambiguity rules.
 - Exact technical acceptance criteria and schemas for Integration Resolver findings and contribution provenance.
 - Detailed domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
 
 ### Open decisions
 
-- Exact project-admin permission lifecycle and revocation semantics for authorizing Mission grants.
-- Detailed PR intake/association mechanics (how existing PRs/commits are attached to Work Items and candidate branches) and supported merge/cherry-pick constraints.
+- Exact project-admin delegation lifecycle and revocation semantics, including behavior when Mission ownership or project access changes.
+- Detailed PR intake metadata conventions, ambiguity thresholds, and supported merge/cherry-pick constraints.
+- Exact concurrency defaults and fairness/priority rules; deterministic trust-classification rules and container profiles; audit retention periods and archive format.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
