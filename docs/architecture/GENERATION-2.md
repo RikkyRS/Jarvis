@@ -232,6 +232,15 @@ The authoritative token budget belongs to a **Mission**, not to a recurring cale
 
 A Mission represents a substantial outcome agreed with the user. Before implementation, the Requirement & Context Analyzer gathers relevant context, clarifies material requirements, and works with the user to establish scope, architecture, deliverables, and acceptance criteria. Once the scope is agreed, the JARVIS estimates the required token allowance and requests the user's authorization for an initial grant.
 
+A Mission's budget lifecycle is divided into two distinct authorization phases:
+
+- **Preparation Budget**: a separate, bounded allowance for discovery and planning before the implementation scope is approved. It covers relevant project investigation, requirement clarification, architecture/design exploration, acceptance criteria, and the execution-budget estimate. Preparation usage is recorded against the Mission but is not silently transferred into or deducted from the later Execution Budget.
+- **Execution Budget**: requested only after the user has reviewed and approved the prepared scope, deliverables, and acceptance criteria. The JARVIS presents an estimate (including uncertainty/range where practical) and requests explicit authorization for the implementation work.
+
+Preparation and execution allowances must be independently identifiable in the ledger and authorization records. The Preparation Budget itself requires an explicit authorization; its amount and any additional preparation grant are decided by the user, not invented or automatically increased by the runtime. If preparation allowance becomes insufficient, the JARVIS pauses AI-dependent preparation work, preserves its findings/checkpoints, reports what remains, estimates the additional preparation tokens needed, and waits for authorization. It must not begin implementation merely because preparation is complete or its budget is exhausted.
+
+The Execution Budget is authorized against a versioned, agreed scope. Material scope changes or a new revision stage require reassessment; if more tokens are needed, the JARVIS requests a separately authorized additional execution grant. The two phases must never be conflated in progress reports or presented as one undifferentiated allowance.
+
 The user may authorize a substantial initial allowance for the agreed scope. The JARVIS must not silently enlarge that allowance. If the mission is likely to exceed its remaining budget, it must pause new LLM calls as required by policy, preserve recoverable checkpoints, explain completed work and remaining work, estimate the additional tokens required, and request an explicitly authorized additional grant.
 
 When the agreed scope is completed, the JARVIS presents an evidence-backed delivery for user evaluation. If the user requests changes or improvements, the JARVIS assesses the new work, estimates its token requirement, and requests a new authorized grant before proceeding when the existing allowance is insufficient. A completed Mission remains durable and reviewable; its history and usage ledger are never reset. Reopening it for another stage does not erase prior consumption or automatically replenish its budget.
@@ -268,15 +277,15 @@ Agents cannot bypass this manager by calling a provider directly. Provider adapt
 
 ### Mission budget lifecycle
 
-1. **Scope and estimation**: clarify the mission with the user, define acceptance criteria, and estimate token needs. Estimates must identify uncertainty and must not be represented as guarantees.
-2. **Initial authorization**: present the proposed allowance and obtain explicit user authorization. Record amount, authorizing actor, timestamp, mission, scope/version, and any applicable constraints.
-3. **Execution and monitoring**: all agents and Work Items within the Mission share its authorized allowance. Usage remains attributable to each agent, Work Item, Workflow Run, operation, provider, and model.
-4. **Approaching the limit**: notify the orchestrator at configurable thresholds, reduce redundant context/work, preserve checkpoints, and prepare a clear progress/remaining-work report.
-5. **Insufficient allowance**: stop new LLM calls when the hard limit is reached or a safe continuation is not possible. Present actual/estimated consumption, completed work, remaining work, and an estimate for additional tokens. Wait for explicit user authorization before increasing the allowance.
+1. **Preparation authorization**: request a bounded Preparation Budget before discovery/planning begins. Record the authorized amount and phase.
+2. **Preparation and scope agreement**: investigate, clarify requirements, evaluate architecture/options, define deliverables and acceptance criteria, and estimate execution tokens. Keep preparation consumption separate from execution allowance.
+3. **Execution authorization**: present the versioned scope and execution estimate; begin implementation only after explicit user approval of the Execution Budget.
+4. **Execution and monitoring**: all agents and Work Items in the Mission share the authorized Execution Budget. Usage remains attributable to each agent, Work Item, Workflow Run, operation, provider, and model.
+5. **Approaching/insufficient allowance**: notify the orchestrator at configurable thresholds, optimize work, preserve checkpoints, and report actual/estimated consumption and remaining work. Pause AI-dependent work when the phase's allowance is exhausted and wait for an explicit grant for that same phase.
 6. **Delivery and evaluation**: when the agreed scope is complete, produce an evidence-backed report and submit the result for user evaluation.
-7. **Revision stage**: if the user requests changes, clarify the requested revision, estimate its token needs, and request an additional grant if required. Preserve the original mission history and all previous usage records.
+7. **Revision stage**: if the user requests changes, clarify and estimate the revision. Request a separately authorized additional Execution Budget when needed; preserve the original Mission history and all previous usage records.
 
-A grant must be auditable and immutable in the ledger: amount, grant type (initial/additional), authorizing actor, authorization timestamp, mission/scope reference, reason, and relevant metadata. The runtime must never grant itself additional tokens. A user-approved increase changes the mission's authorized allowance through a distinct recorded event; it does not rewrite prior usage.
+A grant must be auditable and immutable in the ledger: amount, phase (preparation/execution), grant type (initial/additional), authorizing actor, authorization timestamp, mission/scope version, reason, and relevant metadata. Preparation and execution grants are separate balances and cannot be transferred or silently combined. The runtime must never grant itself additional tokens. A user-approved increase changes only the authorized allowance for the specified phase through a distinct recorded event; it does not rewrite prior usage.
 
 ### Budget exhaustion and efficiency
 
@@ -354,6 +363,7 @@ This document is the persistent architecture source of truth for the Generation 
 - Token budget: shared within each Mission, with usage tracked by Project, Mission, agent, Work Item, Workflow Run, operation, provider, and model.
 - Initial and additional token grants require explicit user authorization and immutable audit records; the runtime cannot increase its own allowance.
 - Mission scope is clarified and agreed before the initial allowance is authorized; the JARVIS estimates token needs and communicates uncertainty.
+- Preparation and execution use separate, independently authorized Mission token budgets. Preparation covers discovery/planning; execution is authorized only after the user approves the prepared scope and estimate. Preparation consumption is not deducted from the execution allowance, and the runtime cannot automatically increase either phase's budget.
 - At insufficient allowance, pause AI-dependent work with recoverable checkpoints, report progress and remaining work, estimate the additional requirement, and wait for user authorization.
 - Completed Missions retain their history and usage ledger. User-requested revisions form a new work stage and require a new authorization when additional tokens are needed.
 
