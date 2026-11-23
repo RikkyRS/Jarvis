@@ -37,6 +37,8 @@ export class WorkflowRuntime {
     /** When set, execution also requires an approved, still-ready plan whose estimate fits the allowance. */
     private readonly planning?: Planning,
     private readonly onChange?: (workItemId: string) => void,
+    /** A reason the run may not go to review yet (quality gates read from the ledger), or null. */
+    private readonly qualityGate?: (runId: string, workItemId: string) => string | null,
   ) {}
 
   /**
@@ -178,6 +180,10 @@ export class WorkflowRuntime {
           `Changes outside the approved plan: ${progress.outOfPlan.map((o) => o.target).join(", ")}. Submit an amended plan for approval.`,
         );
       }
+    }
+    if (run && this.qualityGate) {
+      const blocked = this.qualityGate(runId, run.workItemId);
+      if (blocked) throw new DomainError(blocked);
     }
     const review = this.store.transitionRun(runId, "AWAITING_REVIEW", actor);
     try {

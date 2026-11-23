@@ -4,6 +4,7 @@ Ideias para deixar o JARVIS ainda mais completo como parceiro de programação, 
 
 ## Já feito (método)
 
+- Teste que reproduz o bug antes da correção, checagens obrigatórias por projeto (Node, Python, Java), critérios de aceite ligados a passos, commit local delegado em branch de trabalho.
 - Autonomia delegada até risco MEDIUM (`jarvis autonomy`), com tudo HIGH e CRITICAL esperando o humano.
 - Plano em Certeza / Proposta / Dúvida, diagnóstico obrigatório em bug, matriz de impacto opcional.
 - Revisor cego consultivo, rascunhos de commit e PR, relatório de deriva da documentação.

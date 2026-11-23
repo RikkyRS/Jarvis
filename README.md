@@ -44,6 +44,8 @@ Engineering method: plans separate certainties (with evidence), proposals and do
 
 Autonomy: `jarvis autonomy set INTERMEDIATE` lets JARVIS approve and start plans whose operations are all LOW or MEDIUM risk without asking; commit, push, merge and anything HIGH or CRITICAL always wait for you. Only you can change the level, and every automatic decision is audited as the `autonomy` actor. See [`docs/AUTONOMIA.md`](docs/AUTONOMIA.md).
 
+Quality gates: a bug-fix must be reproduced by a test that really failed before the code is touched and proven by a test that passes after; mandatory per-project checks (`jarvis checks detect --apply`; Node, Python and Java) must pass before a commit or a review; plans can map each acceptance criterion to a step. All of it is read from the execution ledger, not from an agent's word.
+
 ## Verified against the real thing
 
 - The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.

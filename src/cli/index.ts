@@ -7,6 +7,8 @@ import { randomUUID } from "node:crypto";
 import type { ProviderAdapter } from "../ai/index.js";
 import { ClaudeCodeProvider, OllamaProvider } from "../ai/providers.js";
 import { AutonomyConfigSchema, autonomyFingerprint } from "../autonomy/index.js";
+import { detectChecks } from "../method/detect.js";
+import { missingChecks } from "../method/gates.js";
 import { commitMessage, prDescription, type Lang } from "../cycle/artifacts.js";
 import { checkDocumentDrift, renderDrift } from "../knowledge/drift.js";
 import { blindReview, collectDiff, renderBlindReview } from "../review/blind.js";
@@ -82,8 +84,10 @@ export const HELP = `jarvis — deterministic engineering runtime
   cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]   commit message / PR description drafted from the approved plan
   docs-drift [file...]            which claims in README/CLAUDE.md no longer match the repository
   autonomy status --mission <id>  what JARVIS would do on its own right now, and why not when it would not
-  autonomy set <SUPERVISED|INTERMEDIATE> [--max-estimate <tokens>] [--auto-confirm-in-scope]   how much it may do without asking (you decide, here)
+  autonomy set <SUPERVISED|INTERMEDIATE> [--max-estimate <tokens>] [--allow-local-commit] [--auto-confirm-in-scope]   how much it may do without asking (you decide, here)
   autonomy tick --mission <id>    one pass of delegated work: approve and start what is eligible (up to MEDIUM risk)
+  checks detect [--apply]         suggest the mandatory checks from the project files (Node, Python, Java); --apply saves them
+  checks run <runId>              run every mandatory check through the gateway and report which pass
   privacy                         where client data can go, and what to fix (changes nothing)
   digest                          what is waiting for you (messages, proposals with their scope verdict, approvals)
   proposals                       task proposals waiting for your decision
@@ -564,6 +568,7 @@ export async function run(
             options: {
               "max-estimate": { type: "string" },
               "auto-confirm-in-scope": { type: "boolean" },
+              "allow-local-commit": { type: "boolean" },
             },
           });
           const parsed = AutonomyConfigSchema.safeParse({
@@ -572,6 +577,7 @@ export async function run(
               ? { maxEstimateTokens: Number(values["max-estimate"]) }
               : {}),
             autoConfirmInScope: Boolean(values["auto-confirm-in-scope"]),
+            allowLocalCommit: Boolean(values["allow-local-commit"]),
           });
           if (!parsed.success)
             return usage(
@@ -626,6 +632,72 @@ export async function run(
         for (const w of t.waiting)
           io.out(`waits for you: ${w.workItemId}  ${w.reasons.join("; ")}`);
         return 0;
+      }
+
+      case "checks": {
+        if (sub === "detect") {
+          const found = detectChecks(jarvis.root);
+          if (found.length === 0) {
+            io.out("No Node, Python or Java project files found.");
+            return 0;
+          }
+          for (const d of found) {
+            io.out(d.language + ":");
+            for (const ch of d.checks)
+              io.out("  " + ch.name + ": " + [ch.command, ...ch.args].join(" "));
+            for (const n of d.notes) io.out("  note: " + n);
+          }
+          if (rest.includes("--apply")) {
+            const checks = found.flatMap((d) => d.checks);
+            const file = join(jarvis.root, ".jarvis", "config.json");
+            const current = existsSync(file)
+              ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>)
+              : {};
+            mkdirSync(join(jarvis.root, ".jarvis"), { recursive: true });
+            writeFileSync(
+              file,
+              JSON.stringify({ ...current, checks }, null, 2) + String.fromCharCode(10),
+            );
+            jarvis.audit.append({
+              projectId: jarvis.project.id,
+              kind: "config.checks_changed",
+              actor: human,
+              subject: jarvis.project.id,
+              payload: { checks: checks.map((x) => x.name) },
+            });
+            io.out(
+              "Saved " +
+                checks.length +
+                " mandatory check(s). Nothing is committed or submitted until they pass.",
+            );
+          } else io.out("Run again with --apply to make them mandatory.");
+          return 0;
+        }
+        if (sub === "run" && rest[0]) {
+          const run = jarvis.store.getRun(rest[0]);
+          if (!run) return usage(io, "checks run <runId>");
+          const configured = jarvis.checks;
+          if (configured.length === 0) {
+            io.out("No mandatory checks configured. Try: jarvis checks detect --apply");
+            return 0;
+          }
+          for (const ch of configured) {
+            const result = await jarvis.runtime.run(run.id, {
+              operationId: randomUUID(),
+              requestedBy: human,
+              type: "TEST_RUN",
+              target: ".",
+              parameters: { command: ch.command, args: ch.args },
+            });
+            io.out(ch.name + ": " + result.outcome);
+          }
+          const missing = missingChecks(jarvis.db, run.id, configured);
+          io.out(
+            missing.length ? "Not passing: " + missing.join(", ") : "All mandatory checks pass.",
+          );
+          return missing.length ? 1 : 0;
+        }
+        return usage(io, "checks detect [--apply] | checks run <runId>");
       }
 
       case "privacy": {

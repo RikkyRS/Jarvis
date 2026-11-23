@@ -60,7 +60,21 @@ Cada decisão automática aparece na auditoria como ator `autonomy` (nunca como 
 
 Todas as outras barreiras seguem valendo: política de risco, isolamento do código não confiável, caminhos protegidos, orçamento de tokens, plano que prende cada passo a operações reais, e a auditoria com hash. A autonomia só remove a pergunta onde o risco é baixo ou médio.
 
+## Commit local sem pedir (opcional)
+
+```bash
+jarvis autonomy set INTERMEDIATE --allow-local-commit
+```
+
+Com isso, um **commit local** passa pela delegação, e só se todas estas condições valerem:
+
+- o plano aprovado tem um passo de commit (e um rollback);
+- o commit é numa **branch de trabalho**: nunca em `main`, `master`, `develop`, `production`, `release/*`, `hotfix/*` nem na branch padrão do remoto;
+- as **checagens obrigatórias** do projeto passaram desde a última mudança;
+- o diff em stage é exatamente o que o commit leva (o handler confere o hash).
+
+**Push e merge continuam sempre com você.** Na auditoria o commit aparece como `execution.delegated`, ator `autonomy`, com a branch.
+
 ## Para você decidir depois
 
-- **Commit local em branch de trabalho sem pedir** (hoje é HIGH): reduziria as interrupções, mas é uma exceção à regra "commit pede aprovação". Eu manteria como está até você sentir falta.
 - **Rodada automática agendada** pelo próprio JARVIS, em vez de você agendar o `tick`.

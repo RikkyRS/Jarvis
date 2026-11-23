@@ -290,3 +290,16 @@ Pedido do dono: o JARVIS faz o trabalho sozinho até o risco intermediário, e o
 - **Como explicar:** "não é o agente se autorizando, é o dono delegando por escrito um teto de risco, e o runtime nunca passa do teto".
 
 Detalhes em [`docs/AUTONOMIA.md`](AUTONOMIA.md).
+
+---
+
+## 16. Travas de qualidade (lidas do registro de execuções)
+
+| Trava                        | Como funciona                                                                                                                                                                                                                | Por que é forte                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Bug: teste falhando primeiro | Em plano `BUGFIX`, editar código só depois de um `TEST_RUN` que **falhou de verdade** neste run (arquivos de teste sempre podem ser editados). Para ir à revisão, precisa de um teste que **passa depois da última mudança** | A prova vem do registro do que rodou, não da palavra do agente |
+| Checagens obrigatórias       | `checks` na configuração (`jarvis checks detect --apply`). Nada é commitado nem vai à revisão se alguma não passou **desde a última mudança**                                                                                | Mudou o código, a checagem antiga deixa de valer               |
+| Critérios de aceite          | `covers` em cada passo. Se algum passo declara, todo critério precisa de um passo                                                                                                                                            | Impede entregar e esquecer um critério                         |
+| Commit local delegado        | Só em branch de trabalho, com permissão do dono, plano com passo de commit e checagens verdes. Push e merge nunca                                                                                                            | Menos interrupções sem abrir mão do que é irreversível         |
+
+**Python e Java:** `jarvis checks detect` reconhece `pytest`, `ruff`, `mypy` (Python) e Maven/Gradle (Java), além de Node. O JARVIS em si é TypeScript, mas governa projetos em qualquer linguagem: o que ele exige é um comando de teste que retorne código de saída diferente de zero quando falha.

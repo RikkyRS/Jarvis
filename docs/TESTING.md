@@ -110,5 +110,10 @@ The six requirements the project is judged against come first.
 | R-AUTONOMY-02 | Anything HIGH or CRITICAL, a project-required approval, an estimate over the limit or the budget is never auto-approved | adversarial |
 | R-AUTONOMY-03 | The delegation is not a human; control files are never eligible; only the human changes the level, through the CLI, audited | adversarial |
 | R-AUTONOMY-04 | Only a cited IN_SCOPE, non-duplicate request is confirmed automatically; OUT_OF_SCOPE and UNCLEAR always wait for the human | adversarial |
+| R-QUALITY-01 | A bug-fix edits code only after a test has really failed (test files always allowed); review needs a test passing after the last change | adversarial |
+| R-QUALITY-02 | Nothing is committed or submitted while a mandatory check is red, stale or run with a different command | adversarial |
+| R-QUALITY-03 | Once a step declares coverage, every acceptance criterion needs a step; otherwise only a warning | unit |
+| R-QUALITY-04 | A local commit on a work branch may stand on the delegation; on a protected branch, without permission, or for a push the human is needed | adversarial |
+| R-QUALITY-05 | Check detection suggests the right checks for Node, Python and Java projects from their files | unit |
 
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.
