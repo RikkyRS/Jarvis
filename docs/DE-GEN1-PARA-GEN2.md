@@ -208,3 +208,26 @@ Demonstração curta que funciona bem: pedir ao agente uma operação HIGH, most
 - Diga: **"alpha"**, "139 testes", "runtime determinístico", "a IA propõe, o código autoriza".
 - Não diga: "usado em produção", número de usuários ou "à prova de falhas". Nada disso é verdade, e o próprio threat model lista os limites.
 - Mostre o raciocínio (invariantes, ameaças, limites) mais do que a lista de funcionalidades.
+
+---
+
+## 11. O que ainda falta (é alpha, não está "completo")
+
+Fonte: seções "Still open" e "Implementation status" de `docs/architecture/GENERATION-2.md`.
+
+**Não verificado na prática**
+- O perfil Docker de isolamento tem teste unitário, mas **nunca rodou contra um daemon real no CI** (existe um teste opt-in, ignorado por padrão).
+- Os adaptadores de Ollama e Claude Code foram testados **só com fakes**. Houve um piloto manual em 23/11 com Claude Code, que funcionou, mas não é teste automatizado.
+
+**Ainda por construir**
+- Interpretação do Integration Resolver assistida por LLM (hoje a avaliação é só determinística).
+- Perfis de container além do padrão travado; proveniência de imagem além do digest fixado.
+- Formato de arquivamento da auditoria além do hash no próprio lugar.
+- Delegação de permissões além de "criada pelo dono, com expiração e revogável"; semântica de revogação quando o acesso à Mission muda.
+- Regras de concorrência e prioridade além de "prioridade, depois ordem de chegada".
+- Convenções de metadados de PR além de IDs explícitos `wi_…`.
+- Decidir se o JARVIS pode resolver sozinho tarefas simples de baixo risco (hoje só **propõe**).
+
+**Limites de projeto (decididos, não bugs)**
+- Uso local, um processo e um operador humano. Implantação em rede compartilhada está fora do escopo até existirem identidade e gestão de segredos.
+- Sem contabilidade financeira, só contagem de tokens.
