@@ -214,6 +214,7 @@ Every completed implementation/revision should produce an evidence-backed report
 
 - Work Item and Workflow Run identifiers.
 - Summary of what changed and why.
+- A concise, interview-oriented learning note: the technical problem, the reason for the change, the main concept/decision involved, and what the user should be able to explain. Keep this note compact and grounded in verified implementation evidence; do not regenerate or narrate the entire project history.
 - Files and symbols (functions/classes/components/contracts) changed.
 - Approximate final-file line ranges as navigation aids, not stable identifiers.
 - Commit SHA and/or diff reference where available.
@@ -222,7 +223,7 @@ Every completed implementation/revision should produce an evidence-backed report
 - Known limitations, unresolved findings, and follow-up work.
 - Evidence references from tools.
 
-Line numbers alone are insufficient because they shift. Reports must be derived from actual diffs and tool results, not solely from an agent's narrative. Never claim a test passed unless its result is available.
+Line numbers alone are insufficient because they shift. Reports must be derived from actual diffs and tool results, not solely from an agent's narrative. Never claim a test passed unless its result is available. The Mission history is the durable source for later project explanation and interview preparation. Preserve concise, chronological records of changes and why they were made, together with the underlying decisions, evidence, tests, and outcomes. The user should be able to revisit the history and reconstruct the technical reasoning; do not rely on an on-demand LLM summary as the only record.
 
 ## AI Runtime and token governance
 
@@ -239,15 +240,15 @@ The Preparation Budget follows an **adaptive, stage-based estimation model**:
 
 - Estimate preparation work by distinct stages (project investigation, requirement clarification, architecture/design analysis, risk assessment, and planning/documentation), rather than using one unexplained flat number.
 - Use the known mission complexity, project size/knowledge, expected retrieval and analysis scope, and available historical usage from comparable work when valid.
-- Set an initial bounded allowance based on the staged estimate and its uncertainty. The estimate is a planning aid, not a promise of exact consumption.
+- Set one initial bounded token estimate from the staged work. Present the stages and their estimated token amounts, without an uncertainty range or a long justification.
 - Track actual usage and remaining preparation work continuously. If new findings materially change the estimate or the allowance is insufficient, pause before exceeding it, explain the reason and remaining stages, estimate the additional tokens, and request authorization.
 - Re-estimate only affected stages when scope or evidence changes; do not restart the entire estimate without cause.
 
-- **Execution Budget**: requested only after the user has reviewed and approved the prepared scope, deliverables, and acceptance criteria. The JARVIS presents an estimate (including uncertainty/range where practical) and requests explicit authorization for the implementation work.
+- **Execution Budget**: requested only after the user has reviewed and approved the prepared scope, deliverables, and acceptance criteria. The JARVIS presents one token estimate, broken down by execution stages/Work Items, and requests explicit authorization for the implementation work.
 The Execution Budget follows the same **adaptive, stage-based estimation model**, with estimates organized around Work Items:
 
 - Estimate each Work Item's expected implementation, tests, review, and integration activities.
-- Aggregate Work Item estimates into the initial Mission Execution Budget, accounting for dependencies, shared activities, and uncertainty without double-counting.
+- Aggregate Work Item estimates into one initial Mission Execution Budget, accounting for dependencies and shared activities without double-counting. Present the stages/Work Items and their estimated token amounts, without an uncertainty range or lengthy rationale.
 - Track actual usage by agent, Work Item, Workflow Run, Operation, provider, and model. Re-estimate affected work when evidence or scope changes materially.
 - If the remaining allowance is insufficient, pause before exceeding it, preserve checkpoints, report completed work and pending activities, estimate the additional tokens needed, and request an explicit additional grant.
 - Additional grants are independently authorized and auditable within the same Mission execution history. Neither the runtime nor agents may increase the allowance themselves.
@@ -378,7 +379,7 @@ This document is the persistent architecture source of truth for the Generation 
 - Produce evidence-backed change reports explaining what changed and why, with files/symbols, approximate line ranges, commit/diff references, and actual test results.
 - Token budget: shared within each Mission, with usage tracked by Project, Mission, agent, Work Item, Workflow Run, operation, provider, and model.
 - Initial and additional token grants require explicit user authorization and immutable audit records; the runtime cannot increase its own allowance.
-- Mission scope is clarified and agreed before the initial allowance is authorized; the JARVIS estimates token needs and communicates uncertainty.
+- Mission scope is clarified and agreed before the initial allowance is authorized; the JARVIS presents one token estimate broken down by preparation stages or execution Work Items, without an uncertainty range or lengthy estimate rationale.
 - Preparation and execution use separate, independently authorized Mission token budgets. Preparation covers discovery/planning; execution is authorized only after the user approves the prepared scope and estimate. Preparation consumption is not deducted from the execution allowance, and the runtime cannot automatically increase either phase's budget.
 - Preparation allowance sizing uses an adaptive, stage-based estimate: determine the initial bounded allowance from the estimated preparation stages and uncertainty, monitor actual consumption, and request explicit additional authorization if new findings or remaining work exceed the allowance.
 - Execution allowance sizing uses an adaptive, Work-Item-based estimate covering implementation, tests, review, and integration. The Mission execution allowance aggregates these estimates with dependencies and uncertainty; insufficient allowance pauses execution and requires an explicit additional grant.
