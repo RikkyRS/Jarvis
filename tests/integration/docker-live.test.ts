@@ -37,7 +37,7 @@ function finish() { if (done) return; done = true; try { require("node:fs").writ
     });
     delete process.env["JARVIS_LIVE_SECRET"];
     cleanup(workspace);
-    expect(r.exitCode).toBe(0);
+    expect(r.exitCode, `container stderr: ${r.stderr}`).toBe(0);
     expect(JSON.parse(r.stdout.trim().split("\n").pop()!)).toEqual({
       secret: null,
       network: "blocked",
