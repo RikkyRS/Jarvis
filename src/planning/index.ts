@@ -137,9 +137,48 @@ export const PlanStepSchema = z
   })
   .strict();
 
+/** A fact the planner stands behind. Without evidence it is not a certainty, it is a doubt. */
+export const CertaintySchema = z
+  .object({ statement: z.string().min(3).max(300), evidence: z.string().min(3).max(300) })
+  .strict();
+
+/** An open question. While it has no resolution the technical plan cannot be approved. */
+export const DoubtSchema = z
+  .object({
+    id: z.string().regex(/^[a-z][a-z0-9-]{1,30}$/),
+    text: z.string().min(3).max(300),
+    resolution: z.string().max(300).optional(),
+  })
+  .strict();
+
+/** One thing the change touches that already exists, and what is decided about it. */
+export const ImpactRowSchema = z
+  .object({
+    touchpoint: z.string().min(3).max(200),
+    decision: z.enum(["SAME", "NEW_CONTRACT", "VISUAL_ONLY", "FORBIDDEN"]).optional(),
+    note: z.string().max(300).default(""),
+  })
+  .strict();
+
+/** For a bug: where and why it breaks, shown BEFORE anything is edited. */
+export const DiagnosisSchema = z
+  .object({
+    cause: z.string().min(10).max(500),
+    location: z.string().min(3).max(200),
+    evidence: z.string().min(3).max(300),
+  })
+  .strict();
+
 export const PlanSchema = z
   .object({
     summary: z.string().min(1).max(1000),
+    kind: z.enum(["FEATURE", "BUGFIX", "REFACTOR"]).default("FEATURE"),
+    certainties: z.array(CertaintySchema).default([]),
+    proposals: z.array(z.string().min(3).max(300)).default([]),
+    doubts: z.array(DoubtSchema).default([]),
+    /** Optional: what the change touches that already exists. A row without a decision blocks approval. */
+    impactMatrix: z.array(ImpactRowSchema).default([]),
+    diagnosis: DiagnosisSchema.optional(),
     steps: z.array(PlanStepSchema).min(1).max(60),
     risks: z
       .array(z.object({ description: z.string().min(1), mitigation: z.string() }).strict())
@@ -237,6 +276,20 @@ export function checkPlan(
       detail: "The plan changes Git history or worktrees but has no rollback.",
     });
   }
+  if (plan.kind === "BUGFIX" && !plan.diagnosis)
+    blockers.push({
+      code: "NO_DIAGNOSIS",
+      detail: "A bug-fix plan must show the cause (where and why) before anything is edited.",
+    });
+  const openDoubts = plan.doubts.filter((d) => !d.resolution?.trim());
+  if (openDoubts.length)
+    blockers.push({ code: "OPEN_DOUBTS", detail: openDoubts.map((d) => d.id).join(", ") });
+  const undecided = plan.impactMatrix.filter((r) => !r.decision);
+  if (undecided.length)
+    blockers.push({
+      code: "MATRIX_ROW_WITHOUT_DECISION",
+      detail: undecided.map((r) => r.touchpoint).join("; "),
+    });
   const ids = new Set(plan.steps.map((s) => s.id));
   if (ids.size !== plan.steps.length)
     blockers.push({ code: "DUPLICATE_STEP_IDS", detail: "Step ids must be unique." });
@@ -278,6 +331,10 @@ export function checkPlan(
     if (!r.mitigation.trim()) blockers.push({ code: "UNMITIGATED_RISK", detail: r.description });
   if (plan.steps.filter((s) => s.complexity === "HIGH").length > 3)
     warnings.push("More than 3 HIGH-complexity steps: consider splitting the Work Item.");
+  if (!plan.certainties.length && !plan.proposals.length && !plan.doubts.length)
+    warnings.push(
+      "No certainties, proposals or doubts recorded: say what is known, what is proposed and what is unknown.",
+    );
   if (plan.assumptions.length === 0)
     warnings.push("No assumptions recorded; confirm nothing was silently assumed.");
   return { ready: blockers.length === 0, blockers, warnings };

@@ -1,0 +1,5 @@
+{
+  "name": "jarvis",
+  "version": "1.0.0-alpha.0",
+  "description": "Engineering method on top of the JARVIS runtime: plan, dev, blind review, cycle artifacts and documentation drift. The agent proposes; JARVIS authorizes and executes."
+}

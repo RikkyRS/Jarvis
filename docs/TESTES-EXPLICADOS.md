@@ -1,6 +1,6 @@
 # Os testes do JARVIS, por área
 
-Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **175 testes, 172 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
+Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **191 testes, 188 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
 
 Como ler: cada título descreve o comportamento garantido. Os que começam com `[R-...]` são **requisitos críticos** da matriz em [`TESTING.md`](TESTING.md); `tests/unit/traceability.test.ts` falha se um requisito ficar sem teste.
 
@@ -12,33 +12,35 @@ JARVIS_CLAUDE_LIVE=1 npm test                                    # Claude Code d
 JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento com Docker real (já roda no CI)
 ```
 
-| Área                             |  Testes |
-| -------------------------------- | ------: |
-| `e2e/cli-lifecycle`              |       1 |
-| `e2e/full-flow`                  |      10 |
-| `e2e/protected-paths`            |       2 |
-| `integration/adapters`           |       8 |
-| `integration/ai-runtime`         |      15 |
-| `integration/container-profile`  |       2 |
-| `integration/contract`           |      15 |
-| `integration/docker-live`        |       1 |
-| `integration/domain-budget`      |      13 |
-| `integration/gateway`            |      18 |
-| `integration/git`                |      10 |
-| `integration/intake`             |      11 |
-| `integration/intake-triage`      |       5 |
-| `integration/interpretation`     |       6 |
-| `integration/plan-steps`         |       6 |
-| `integration/planning-notes`     |      12 |
-| `integration/privacy`            |       3 |
-| `integration/providers-http`     |       2 |
-| `integration/providers-live`     |       2 |
-| `integration/resolver-knowledge` |      12 |
-| `recovery/recovery`              |       6 |
-| `unit/domain`                    |       7 |
-| `unit/requirements`              |       5 |
-| `unit/traceability`              |       3 |
-| **Total**                        | **175** |
+| Área | Testes |
+|---|---:|
+| `e2e/cli-lifecycle` | 1 |
+| `e2e/full-flow` | 10 |
+| `e2e/protected-paths` | 2 |
+| `integration/adapters` | 8 |
+| `integration/ai-runtime` | 15 |
+| `integration/container-profile` | 2 |
+| `integration/contract` | 15 |
+| `integration/docker-live` | 1 |
+| `integration/domain-budget` | 13 |
+| `integration/engineering-method` | 12 |
+| `integration/gateway` | 18 |
+| `integration/git` | 10 |
+| `integration/intake` | 11 |
+| `integration/intake-triage` | 5 |
+| `integration/interpretation` | 6 |
+| `integration/plan-steps` | 6 |
+| `integration/planning-notes` | 12 |
+| `integration/privacy` | 3 |
+| `integration/providers-http` | 2 |
+| `integration/providers-live` | 2 |
+| `integration/resolver-knowledge` | 12 |
+| `recovery/recovery` | 6 |
+| `unit/domain` | 7 |
+| `unit/plugin` | 4 |
+| `unit/requirements` | 5 |
+| `unit/traceability` | 3 |
+| **Total** | **191** |
 
 ---
 
@@ -115,12 +117,16 @@ Runtime de IA: roteador, orçamento, loops, scheduler, provedores e perfil de is
 
 ## `integration/container-profile` (2)
 
+
+
 - [R-ISO-02] never runs as root and defaults to an unprivileged id
 - [R-ISO-02] the user is part of the locked-down argument list and can be overridden
 
 ---
 
 ## `integration/contract` (15)
+
+
 
 - [R-CONTRACT-02] only a human can add documents; an agent is refused
 - [R-CONTRACT-02] a new version replaces the one consulted; the old is kept and audited
@@ -165,6 +171,25 @@ Projetos, Missions, Work Items e orçamento de tokens
 - [R-LEDGER-02] keeps unavailable usage as UNAVAILABLE and reconciles without erasing
 - [R-LEDGER-01] ledgers are immutable
 - [R-BUDGET-04] rejects thresholds that weaken the hard stop
+
+---
+
+## `integration/engineering-method` (12)
+
+
+
+- [R-METHOD-01] a bug-fix plan cannot be approved without showing the cause
+- [R-METHOD-02] an open doubt blocks the plan; resolving it unblocks
+- [R-METHOD-02] a certainty needs evidence, otherwise it is not a certainty
+- [R-METHOD-03] an impact-matrix row without a decision blocks the plan
+- [R-METHOD-04] finds, without any model, a planned step whose paths were never touched
+- [R-METHOD-04] the verdict is computed from the findings, never taken from the model
+- [R-METHOD-04] the reviewer is blind: it never receives decisions, conversation or history
+- [R-METHOD-04] findings that cite an unknown plan item or an unchanged file are dropped
+- [R-METHOD-04] with the model unavailable only the deterministic checks run
+- [R-METHOD-05] the commit message is type(scope): description, short and derived from the plan
+- [R-METHOD-05] the PR description lists what the plan states and nothing invented
+- [R-METHOD-06] separates what still holds from what aged, and says what it could not check
 
 ---
 
@@ -230,6 +255,8 @@ Mensagens externas (WhatsApp): são dado não confiável e viram proposta
 
 ## `integration/intake-triage` (5)
 
+
+
 - [R-INTAKE-03] a repeated complaint arrives as a proposal tagged REPEATED with the history as evidence
 - [R-INTAKE-03] a triage failure never blocks the proposal
 - [R-INTAKE-04] a reply is only a draft stored for the human; there is no way to send it
@@ -284,6 +311,8 @@ Planning gate e diário de aprendizado
 ---
 
 ## `integration/privacy` (3)
+
+
 
 - [R-PRIVACY-01] the state directory can never be committed, even if the project forgot to ignore it
 - [R-PRIVACY-02] the report flags a cloud model and an exposed state directory, and is OK when local
@@ -352,6 +381,17 @@ Regras de domínio: política, estado e hash canônico
 - [R-POLICY-01] lets project config tighten but never weaken
 - defaults trust to UNTRUSTED and rejects unknown fields
 - is key-order independent and rejects non-JSON values
+
+---
+
+## `unit/plugin` (4)
+
+
+
+- [R-PLUGIN-01] declares five skills, each with a name and a description
+- [R-PLUGIN-01] every MCP tool a skill mentions really exists
+- [R-PLUGIN-01] every CLI command a skill tells the user to run really exists
+- [R-PLUGIN-01] no skill grants an agent the power to approve
 
 ---
 

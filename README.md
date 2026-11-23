@@ -40,6 +40,8 @@ Project contract: each project keeps its own contract, agreed scope and delivery
 
 Client messages: forward or receive them (`jarvis inbox add`, WhatsApp webhook), run `jarvis inbox process`, and read `jarvis digest`. Each proposal carries a scope verdict that cites the contract or the delivery history. JARVIS drafts replies but cannot send anything. Everything stays local by default; see [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md) and run `jarvis privacy`.
 
+Engineering method: plans separate certainties (with evidence), proposals and doubts; a bug-fix plan must show its cause; a blind reviewer compares the result with the approved plan; `jarvis cycle` drafts the commit and PR text; `jarvis docs-drift` finds documentation that no longer matches the code. A Claude Code plugin (`plugin/`) exposes them as `/jarvis:plan`, `dev`, `review`, `cycle` and `toc`. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Verified against the real thing
 
 - The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.

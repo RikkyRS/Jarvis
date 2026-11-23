@@ -99,4 +99,12 @@ The six requirements the project is judged against come first.
 | R-PRIVACY-01 | The state directory (messages, contract text) can never be committed, even if the project forgot to ignore it | integration |
 | R-PRIVACY-02 | The privacy report flags cloud models, exposed data and old stored messages, and passes when everything is local | integration |
 
+| R-METHOD-01 | A bug-fix plan cannot be approved without showing the cause (where and why) before anything is edited | unit |
+| R-METHOD-02 | A doubt with no resolution blocks the plan, and a certainty without evidence is rejected | unit |
+| R-METHOD-03 | An impact-matrix row without a decision blocks the plan; an empty matrix is valid | unit |
+| R-METHOD-04 | Blind review: sees only plan, criteria and code; verdict computed from findings; invented references dropped; advisory | adversarial |
+| R-METHOD-05 | Commit message and PR description are drafted from the approved plan, short and never invented | unit |
+| R-METHOD-06 | Documentation drift separates what holds from what aged and reports what it could not check | unit |
+| R-PLUGIN-01 | The plugin skills mention only MCP tools and CLI commands that exist, and none lets an agent approve | unit |
+
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.
