@@ -285,15 +285,19 @@ The user selected a hybrid policy:
 
 The 70% and 90% thresholds and the size/eligibility of any reserve are initial design proposals, not yet finalized configuration defaults.
 
-### Budget renewal — open decision
+### Budget renewal — confirmed hybrid decision
 
-The renewal model has not been selected. Options under consideration:
+The user selected a hybrid renewal model:
 
-- permanent project budget replenished manually;
-- periodic budget reset;
-- hybrid periodic base plus explicitly added extra tokens.
+- Each Project has a configurable recurring base token allowance for a defined period.
+- The project may receive additional token grants when needed, without changing the recurring base allowance.
+- Base allowance and additional grants contribute to the same shared project budget and are consumed under the same Token Budget Manager.
+- Every grant must be auditable: amount, source/reason, authorizing actor, creation time, and applicable validity/expiry metadata.
+- The runtime must not silently increase the allowance. Additional grants require an explicit authorized action.
+- The period length, reset boundary/time zone, rollover/carryover behavior, and expiry policy for additional grants remain configuration/product decisions and must not be hard-coded by assumption.
+- Period renewal must not erase usage history or interrupt the audit ledger. It creates a new allowance period while preserving prior records and outstanding execution checkpoints.
 
-Do not assume a choice until the user confirms it.
+This is a token-count policy; it does not require financial cost tracking.
 
 ## Data architecture
 
@@ -351,6 +355,7 @@ This document is the persistent architecture source of truth for the Generation 
 - Produce evidence-backed change reports explaining what changed and why, with files/symbols, approximate line ranges, commit/diff references, and actual test results.
 - Token budget: shared per project, with usage tracked by agent/task/run/operation/provider/model; token counts only, no mandatory financial budget.
 - Token exhaustion: hybrid policy — optimize and reprioritize as the budget is consumed, then pause AI-dependent work at the hard limit with recoverable checkpoints.
+- Token budget renewal: hybrid recurring base allowance per Project plus explicitly authorized additional token grants. Period length and rollover/expiry rules remain open.
 
 ### Proposed, not yet finalized
 
@@ -361,7 +366,9 @@ This document is the persistent architecture source of truth for the Generation 
 
 ### Open decisions
 
-- Token budget renewal/replenishment model: permanent, periodic, or hybrid.
+- Recurring token period length and reset boundary/time zone.
+- Whether unused base tokens roll over, expire, or follow a capped carryover policy.
+- Expiry/rollover rules for additional token grants.
 - Exact token threshold defaults and reserve policy.
 - Detailed candidate branch/PR mechanics and merge strategy, to be decided against the actual repository workflow.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
