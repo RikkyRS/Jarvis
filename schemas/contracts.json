@@ -1,0 +1,1028 @@
+{
+  "version": "1.0.0",
+  "contracts": {
+    "OperationRequest": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "projectId": {
+          "$ref": "#/properties/operationId"
+        },
+        "workItemId": {
+          "$ref": "#/properties/operationId"
+        },
+        "workflowRunId": {
+          "$ref": "#/properties/operationId"
+        },
+        "requestedBy": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "human",
+                "agent",
+                "system"
+              ]
+            },
+            "id": {
+              "$ref": "#/properties/operationId"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "FILE_READ",
+            "GIT_INSPECT",
+            "FILE_EDIT",
+            "TEST_RUN",
+            "GIT_STAGE",
+            "GIT_COMMIT",
+            "GIT_PUSH",
+            "GIT_MERGE",
+            "GIT_WORKTREE_ADD",
+            "GIT_WORKTREE_REMOVE",
+            "GIT_FORCE_PUSH",
+            "GIT_RESET_HARD",
+            "GIT_CLEAN"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/parameters/additionalProperties"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/properties/parameters/additionalProperties"
+                }
+              }
+            ]
+          },
+          "default": {}
+        },
+        "trust": {
+          "type": "string",
+          "enum": [
+            "TRUSTED",
+            "UNTRUSTED"
+          ],
+          "default": "UNTRUSTED"
+        }
+      },
+      "required": [
+        "operationId",
+        "projectId",
+        "workItemId",
+        "workflowRunId",
+        "requestedBy",
+        "type",
+        "target"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Approval": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operationId": {
+          "$ref": "#/properties/id"
+        },
+        "projectId": {
+          "$ref": "#/properties/id"
+        },
+        "workItemId": {
+          "$ref": "#/properties/id"
+        },
+        "workflowRunId": {
+          "$ref": "#/properties/id"
+        },
+        "requestedBy": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "human",
+                "agent",
+                "system"
+              ]
+            },
+            "id": {
+              "$ref": "#/properties/id"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "FILE_READ",
+            "GIT_INSPECT",
+            "FILE_EDIT",
+            "TEST_RUN",
+            "GIT_STAGE",
+            "GIT_COMMIT",
+            "GIT_PUSH",
+            "GIT_MERGE",
+            "GIT_WORKTREE_ADD",
+            "GIT_WORKTREE_REMOVE",
+            "GIT_FORCE_PUSH",
+            "GIT_RESET_HARD",
+            "GIT_CLEAN"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "CONSUMED",
+            "REJECTED",
+            "EXPIRED"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "$ref": "#/properties/createdAt"
+        },
+        "decidedBy": {
+          "anyOf": [
+            {
+              "$ref": "#/properties/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decidedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/properties/createdAt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/properties/createdAt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "operationId",
+        "projectId",
+        "workItemId",
+        "workflowRunId",
+        "requestedBy",
+        "type",
+        "target",
+        "fingerprint",
+        "status",
+        "createdAt",
+        "expiresAt",
+        "decidedBy",
+        "decidedAt",
+        "consumedAt"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdBy": {
+          "$ref": "#/properties/id"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "root",
+        "createdBy",
+        "createdAt"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "WorkItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "projectId": {
+          "$ref": "#/properties/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reviewFeedback": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "OPEN",
+            "IN_PROGRESS",
+            "DELIVERED",
+            "REOPENED",
+            "CLOSED"
+          ]
+        },
+        "referenceBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "$ref": "#/properties/createdAt"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "title",
+        "objective",
+        "requirements",
+        "acceptanceCriteria",
+        "decisions",
+        "reviewFeedback",
+        "status",
+        "referenceBranch",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "WorkflowRun": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "projectId": {
+          "$ref": "#/properties/id"
+        },
+        "workItemId": {
+          "$ref": "#/properties/id"
+        },
+        "sequence": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PLANNED",
+            "PREPARING",
+            "AWAITING_EXECUTION_APPROVAL",
+            "RUNNING",
+            "PAUSED",
+            "AWAITING_REVIEW",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "worktreePath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checkpoint": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/checkpoint/additionalProperties"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/properties/checkpoint/additionalProperties"
+                }
+              }
+            ]
+          }
+        },
+        "version": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "$ref": "#/properties/createdAt"
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "workItemId",
+        "sequence",
+        "status",
+        "branch",
+        "worktreePath",
+        "checkpoint",
+        "version",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Claim": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "SCAN",
+            "AGENT",
+            "HUMAN"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "evidence",
+        "confidence",
+        "source",
+        "createdAt"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Plan": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,40}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "FILE_READ",
+                    "GIT_INSPECT",
+                    "FILE_EDIT",
+                    "TEST_RUN",
+                    "GIT_STAGE",
+                    "GIT_COMMIT",
+                    "GIT_PUSH",
+                    "GIT_MERGE",
+                    "GIT_WORKTREE_ADD",
+                    "GIT_WORKTREE_REMOVE",
+                    "GIT_FORCE_PUSH",
+                    "GIT_RESET_HARD",
+                    "GIT_CLEAN"
+                  ]
+                },
+                "minItems": 1
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "complexity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 300
+              },
+              "dependsOn": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "operations",
+              "complexity",
+              "verification"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 60
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "mitigation": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "mitigation"
+            ],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "testStrategy": {
+          "type": "string",
+          "default": ""
+        },
+        "rollback": {
+          "type": "string",
+          "default": ""
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "summary",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Association": {
+      "type": "object",
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "workItemId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "DISCOVERED",
+            "CONFIRMED",
+            "AMBIGUOUS",
+            "UNASSOCIATED"
+          ]
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "commit",
+        "workItemId",
+        "state",
+        "signals"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "CheckResult": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exitCode": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "outputTail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "command",
+        "args",
+        "exitCode",
+        "passed",
+        "outputTail"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "Finding": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "INFO",
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "BASE_MISMATCH",
+            "FILE_OVERLAP",
+            "DEPENDENCY_CHANGE",
+            "CONTRACT_CHANGE",
+            "CHECK_FAILED",
+            "CHECKOUT_MISMATCH",
+            "UNASSOCIATED"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "workItemIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "kind",
+        "message",
+        "commits",
+        "workItemIds",
+        "paths",
+        "recommendation"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "IntegrationReport": {
+      "type": "object",
+      "properties": {
+        "baseSha": {
+          "type": "string"
+        },
+        "candidateSha": {
+          "type": "string"
+        },
+        "candidateRef": {
+          "type": "string"
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sha": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "sha",
+              "subject",
+              "paths"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "associations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string"
+              },
+              "workItemId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "DISCOVERED",
+                  "CONFIRMED",
+                  "AMBIGUOUS",
+                  "UNASSOCIATED"
+                ]
+              },
+              "signals": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "commit",
+              "workItemId",
+              "state",
+              "signals"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "needsConfirmation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "exitCode": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "outputTail": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "command",
+              "args",
+              "exitCode",
+              "passed",
+              "outputTail"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "INFO",
+                  "MEDIUM",
+                  "HIGH"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "BASE_MISMATCH",
+                  "FILE_OVERLAP",
+                  "DEPENDENCY_CHANGE",
+                  "CONTRACT_CHANGE",
+                  "CHECK_FAILED",
+                  "CHECKOUT_MISMATCH",
+                  "UNASSOCIATED"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "commits": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "workItemIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "recommendation": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "severity",
+              "kind",
+              "message",
+              "commits",
+              "workItemIds",
+              "paths",
+              "recommendation"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "recommendation": {
+          "type": "string",
+          "enum": [
+            "ACCEPT",
+            "REQUEST_CHANGES",
+            "BLOCK"
+          ]
+        },
+        "reportHash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseSha",
+        "candidateSha",
+        "candidateRef",
+        "commits",
+        "associations",
+        "needsConfirmation",
+        "checks",
+        "findings",
+        "recommendation",
+        "reportHash"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+}

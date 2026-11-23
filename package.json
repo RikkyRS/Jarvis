@@ -1,11 +1,8 @@
 {
   "name": "jarvis",
-  "version": "0.6.0",
-  "description": "Evidence-first local development harness — Cycle, risk gates, and memory for AI-assisted coding. Cursor/IDE agnostic.",
+  "version": "1.0.0-alpha.0",
+  "description": "JARVIS Generation 2 — deterministic, provider-agnostic engineering runtime: policy, operation-specific approvals, execution gateway, audit.",
   "type": "module",
-  "bin": {
-    "jarvis": "./dist/cli/index.js"
-  },
   "files": [
     "dist",
     "README.md",
@@ -20,7 +17,8 @@
     "ci": "npm run typecheck && npm run lint && npm test && npm run build",
     "format": "prettier --write src tests docs README.md",
     "prepublishOnly": "npm run build",
-    "jarvis": "tsx src/cli/index.ts"
+    "jarvis": "tsx src/cli/main.ts",
+    "export-schemas": "tsx scripts/export-schemas.ts"
   },
   "engines": {
     "node": ">=22.5"
@@ -44,7 +42,9 @@
   },
   "homepage": "https://github.com/RikkyRS/Jarvis#readme",
   "dependencies": {
-    "zod": "^3.25.76"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
@@ -55,5 +55,13 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.40.0",
     "vitest": "^3.2.4"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "jarvis": "./dist/cli/main.js"
   }
 }

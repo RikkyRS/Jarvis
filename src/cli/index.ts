@@ -1,153 +1,578 @@
-#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { userInfo } from "node:os";
 import { parseArgs } from "node:util";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { COMMANDS, runCommand } from "./commands.js";
-import { resolveIntent } from "./intent.js";
-import { resolveTarget } from "./target.js";
+import { Jarvis } from "../app/jarvis.js";
+import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
+import { exportSchemas } from "../contracts/export.js";
+import { HostRunner } from "../gateway/index.js";
+import { applyRetention } from "../persistence/retention.js";
+import { buildChangeReport, renderChangeReport } from "../report/index.js";
 
-function print(data: unknown): void {
-  process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+/**
+ * Human CLI. This is the only channel that can approve operations, grant tokens or confirm
+ * proposals, because it acts as a human principal in an interactive terminal.
+ */
+export type Io = {
+  out(line: string): void;
+  err(line: string): void;
+  confirm(question: string): Promise<boolean>;
+};
+
+export const defaultIo: Io = {
+  out: (l) => console.log(l),
+  err: (l) => console.error(l),
+  confirm: async (question) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      return /^y(es)?$/i.test((await rl.question(`${question} [y/N] `)).trim());
+    } finally {
+      rl.close();
+    }
+  },
+};
+
+export const HELP = `jarvis — deterministic engineering runtime
+
+  status                          project, work items, approvals, audit integrity
+  work create <title> --objective <text> [--accept <criterion>]...
+  work list
+  work show <workItem>            requirements, decisions, runs
+  work status <workItem> <IN_PROGRESS|DELIVERED|REOPENED|CLOSED>
+  run create <workItem>           new attempt (PLANNED -> PREPARING)
+  run ready <runId>               preparation finished, waiting for your go (-> AWAITING_EXECUTION_APPROVAL)
+  run start <runId> <missionId>   YOU start execution: needs approved plan + enough Execution Budget
+  run submit <runId>              all plan steps proven -> AWAITING_REVIEW
+  run complete <runId>            after your review (a human decision)
+  run pause|cancel <runId>
+  run list <workItem>
+  approvals [--watch]             operations waiting for a human decision, with full detail
+  plan questions <workItem>       find every unknown that must be answered BEFORE implementing
+  plan answer <workItem> <category> <text...>
+  plan assume <workItem>          accept the stated convention for all low-impact questions
+  plan submit <workItem> <plan.json>
+  plan check <workItem>           is the plan complete? lists blockers
+  plan show <workItem>
+  plan progress <workItem>        which steps are done and any change outside the plan
+  plan done <workItem> <step> <operationId...>   mark a step, proven by successful operations
+  plan approve <workItem>         approve plan + token estimate (a human decision)
+  notes path|write <workItem>     learning journal: where it is, or regenerate a note
+  report <runId> --base <ref> --head <ref> [--summary <text>]   evidence-backed change report (markdown)
+  retention apply --days <n>      archive old operational data (audit and ledgers are never touched)
+  approve <approvalId> [--yes]    review the exact operation, then approve it
+  reject <approvalId>
+  mission create [--work-item <id>]
+  budget status <missionId> <PREPARATION|EXECUTION>
+  budget grant <missionId> <PREPARATION|EXECUTION> <tokens> --reason <text>
+  audit verify
+  proposals                       task proposals waiting for your decision
+  proposal confirm <id> [--new]   create the Work Item (or merge into the duplicate unless --new)
+  proposal reject <id>
+  scan                            analyze the project stack into source-backed knowledge
+  know <query>                    retrieve relevant, revalidated claims
+  schemas                         print the exported JSON Schema contracts
+  mcp [--client <name>]           serve the MCP adapter for AI clients on stdio
+`;
+
+export function humanPrincipal(env: NodeJS.ProcessEnv = process.env): Principal {
+  const id = env["JARVIS_USER"] ?? userInfo().username;
+  return { kind: "human", id };
 }
 
-export async function main(argv = process.argv.slice(2)): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      project: { type: "string" },
-      json: { type: "boolean", default: false },
-      approve: { type: "boolean", default: false },
-      session: { type: "string" },
-      deep: { type: "boolean", default: false },
-      commit: { type: "boolean", default: false },
-      port: { type: "string" },
-      host: { type: "string" },
-      remote: { type: "string" },
-      checks: { type: "boolean", default: false },
-      limit: { type: "string" },
-      path: { type: "string" },
-      help: { type: "boolean", short: "h", default: false },
-    },
-  });
-
-  if (values.help || positionals.length === 0) {
-    process.stdout.write(`JARVIS — evidence-first personal development harness
-
-Commands:
-  ${COMMANDS.join("\n  ")}
-
-Natural language:
-  jarvis resumo              # brief compacto (economiza tokens)
-  jarvis memorizar "nota"
-  jarvis quem                # quem segura o lock
-  jarvis exportar            # pack de evidência do Cycle
-  jarvis compartilhar        # rascunho LinkedIn (sem autopost)
-  jarvis share github        # repos da conta gh ainda não postados
-  jarvis share draft o/r     # draft de repo GitHub (sem Cycle)
-  jarvis share status        # Cycles COMPLETED locais
-  jarvis share done          # marca rascunho como publicado
-  jarvis importar --path x   # importa pack (read-only)
-  jarvis servidor            # backend local 127.0.0.1:39217
-
-Options:
-  --project <path>   target project (required inside the JARVIS runtime)
-  --approve          explicit approval for HIGH-risk operations
-  --path <file>      path for export/import/share draft
-  --remote           fetch remote on reconcile
-  --checks           read PR checks via gh on wait
-  --port <n>         port for serve (default 39217)
-  --host <addr>      host for serve (default 127.0.0.1)
-  -h, --help         show help
-`);
+export async function run(
+  argv: string[],
+  io: Io = defaultIo,
+  root = process.cwd(),
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<number> {
+  const [command, sub, ...rest] = argv;
+  if (!command || command === "help" || command === "--help") {
+    io.out(HELP);
+    return 0;
+  }
+  if (command === "schemas") {
+    io.out(JSON.stringify(exportSchemas(), null, 2));
     return 0;
   }
 
-  const rawCommand = positionals[0];
-  const intent = resolveIntent(positionals);
-  if (!rawCommand || !intent) {
-    print({ status: "UNKNOWN_COMMAND", command: rawCommand });
-    return 1;
-  }
-  const command = intent.command;
-  const objective = intent.rest.join(" ");
-
-  if (command === "serve") {
-    const { startJarvisServer, DEFAULT_HOST, DEFAULT_PORT } = await import("../infrastructure/server.js");
-    const port = values.port ? Number.parseInt(values.port, 10) : DEFAULT_PORT;
-    const host = values.host ?? DEFAULT_HOST;
-    if (Number.isNaN(port) || port < 1 || port > 65535) {
-      print({ status: "INVALID_PORT", port: values.port });
-      return 2;
-    }
-    try {
-      const started = await startJarvisServer(port, host);
-      print({
-        status: "SERVING",
-        host,
-        port: started.port,
-        endpoints: [
-          `GET  http://${host}:${started.port}/health`,
-          `GET  http://${host}:${started.port}/brief?project=<path>`,
-          `POST http://${host}:${started.port}/memory?project=<path>`,
-          `POST http://${host}:${started.port}/command?project=<path>`,
-        ],
-        note: "Local-only backend. Estado continua em .harness/ por projeto.",
-      });
-      await new Promise<void>((resolve) => {
-        process.on("SIGINT", () => {
-          started.close();
-          resolve();
-        });
-        process.on("SIGTERM", () => {
-          started.close();
-          resolve();
-        });
-      });
-      return 0;
-    } catch (error) {
-      print({ status: "SERVE_FAILED", error: error instanceof Error ? error.message : String(error) });
-      return 1;
-    }
-  }
-
-  const allowRuntime = command === "doctor";
-  const target = resolveTarget(values.project, process.cwd(), allowRuntime);
-  if (target.status !== "RESOLVED") {
-    print(target);
-    return 2;
-  }
-
-  const result = runCommand(command, target.path, {
-    ...(objective ? { objective } : {}),
-    ...(values.approve ? { approve: true } : {}),
-    ...(values.session ? { session: values.session } : {}),
-    ...(values.deep ? { deep: true } : {}),
-    ...(values.commit ? { commit: true } : {}),
-    ...(values.remote ? { remote: true } : {}),
-    ...(values.checks ? { checks: true } : {}),
-    ...(values.limit ? { limit: Number.parseInt(values.limit, 10) } : {}),
-    ...(values.path ? { path: values.path } : {}),
+  const human = humanPrincipal(env);
+  const jarvis = Jarvis.open({
+    root,
+    human,
+    ...(env["JARVIS_NOTES_DIR"] ? { notesDir: env["JARVIS_NOTES_DIR"] } : {}),
   });
-  print(result);
-  return 0;
+  try {
+    switch (command) {
+      case "status":
+        io.out(JSON.stringify(jarvis.status(), null, 2));
+        return 0;
+
+      case "work": {
+        if (sub === "list") {
+          for (const i of jarvis.store.listWorkItems(jarvis.project.id))
+            io.out(`${i.id}  ${i.status.padEnd(11)} ${i.title}`);
+          return 0;
+        }
+        if (sub === "show" && rest[0]) {
+          const item = jarvis.store.getWorkItem(rest[0]);
+          if (!item) {
+            io.err("Unknown work item.");
+            return 1;
+          }
+          io.out(
+            JSON.stringify(
+              {
+                ...item,
+                runs: jarvis.store
+                  .listRuns(item.id)
+                  .map((r) => ({ id: r.id, sequence: r.sequence, status: r.status })),
+              },
+              null,
+              2,
+            ),
+          );
+          return 0;
+        }
+        if (sub === "status") {
+          const [id, to] = rest;
+          if (!id || !to)
+            return usage(io, "work status <workItem> <IN_PROGRESS|DELIVERED|REOPENED|CLOSED>");
+          io.out(jarvis.store.transitionWorkItem(id, to as never, human).status);
+          return 0;
+        }
+        if (sub === "create") {
+          const { values, positionals } = parseArgs({
+            args: rest,
+            allowPositionals: true,
+            options: { objective: { type: "string" }, accept: { type: "string", multiple: true } },
+          });
+          const title = positionals.join(" ").trim();
+          if (!title || !values.objective) {
+            io.err("usage: work create <title> --objective <text> [--accept <criterion>]...");
+            return 2;
+          }
+          const item = jarvis.store.createWorkItem({
+            projectId: jarvis.project.id,
+            actor: human,
+            title,
+            objective: values.objective,
+            acceptanceCriteria: values.accept ?? [],
+          });
+          io.out(item.id);
+          return 0;
+        }
+        break;
+      }
+
+      case "run": {
+        const runUsage = "run create|ready|start|submit|complete|pause|cancel|list ...";
+        const [id, missionId] = rest;
+        if (!sub || !id) return usage(io, runUsage);
+        const store = jarvis.store;
+        if (sub === "list") {
+          for (const r of store.listRuns(id)) io.out(`${r.id}  #${r.sequence}  ${r.status}`);
+          return 0;
+        }
+        if (sub === "create") {
+          const created = store.createRun(id, human);
+          store.transitionRun(created.id, "PREPARING", human);
+          io.out(created.id);
+          return 0;
+        }
+        if (sub === "ready") {
+          io.out(store.transitionRun(id, "AWAITING_EXECUTION_APPROVAL", human).status);
+          return 0;
+        }
+        if (sub === "start") {
+          if (!missionId) return usage(io, "run start <runId> <missionId>");
+          io.out(jarvis.runtime.startExecution(id, missionId, human).status);
+          return 0;
+        }
+        if (sub === "submit") {
+          io.out(jarvis.runtime.submitForReview(id, human).status);
+          return 0;
+        }
+        if (sub === "complete") {
+          io.out(jarvis.runtime.complete(id, human).status);
+          return 0;
+        }
+        if (sub === "pause") {
+          io.out(jarvis.runtime.pause(id, human, "paused by human").status);
+          return 0;
+        }
+        if (sub === "cancel") {
+          io.out(store.transitionRun(id, "CANCELLED", human).status);
+          return 0;
+        }
+        return usage(io, runUsage);
+      }
+
+      case "approvals": {
+        if (sub === "--watch") {
+          const { values } = parseArgs({
+            args: rest,
+            options: { interval: { type: "string" }, max: { type: "string" } },
+          });
+          const every = Number(values.interval ?? 2000);
+          const max = Number(values.max ?? Number.POSITIVE_INFINITY);
+          const seen = new Set<string>();
+          for (let i = 0; i < max; i += 1) {
+            for (const { approval, request } of jarvis.pendingApprovals()) {
+              if (approval.status !== "PENDING" || seen.has(approval.id)) continue;
+              seen.add(approval.id);
+              io.out(
+                `NEW ${approval.id}  ${approval.type} ${approval.target}  (by ${approval.requestedBy.id})`,
+              );
+              if (request) io.out(`  parameters: ${JSON.stringify(request.parameters)}`);
+              io.out(`  -> jarvis approve ${approval.id}`);
+            }
+            if (i + 1 < max) await new Promise((r) => setTimeout(r, every));
+          }
+          return 0;
+        }
+        const pending = jarvis.pendingApprovals();
+        if (pending.length === 0) io.out("No approvals waiting.");
+        for (const { approval, request } of pending) {
+          io.out(`${approval.id}  ${approval.status}  expires ${approval.expiresAt}`);
+          io.out(
+            `  ${approval.type} ${approval.target}  (requested by ${approval.requestedBy.kind}:${approval.requestedBy.id})`,
+          );
+          if (request) io.out(`  parameters: ${JSON.stringify(request.parameters)}`);
+        }
+        return 0;
+      }
+
+      case "approve": {
+        if (!sub) return usage(io, "approve <approvalId> [--yes]");
+        const request = jarvis.approvals.requestOf(sub);
+        const approval = jarvis.approvals.get(sub);
+        if (!approval || !request) {
+          io.err("Unknown approval.");
+          return 1;
+        }
+        io.out(`Operation : ${request.type}`);
+        io.out(`Target    : ${approval.target}`);
+        io.out(`Requested : ${approval.requestedBy.kind}:${approval.requestedBy.id}`);
+        io.out(`Parameters: ${JSON.stringify(request.parameters, null, 2)}`);
+        io.out(`Expires   : ${approval.expiresAt}`);
+        const yes = rest.includes("--yes") || sub === "--yes";
+        if (!yes && !(await io.confirm("Approve exactly this operation?"))) {
+          io.out("Not approved.");
+          return 1;
+        }
+        jarvis.approve(sub);
+        io.out("Approved. The requesting client can now resume the operation.");
+        return 0;
+      }
+
+      case "reject":
+        if (!sub) return usage(io, "reject <approvalId>");
+        jarvis.reject(sub);
+        io.out("Rejected.");
+        return 0;
+
+      case "mission": {
+        if (sub !== "create") break;
+        const { values } = parseArgs({ args: rest, options: { "work-item": { type: "string" } } });
+        io.out(
+          jarvis.budget.createMission({
+            projectId: jarvis.project.id,
+            owner: human,
+            ...(values["work-item"] ? { workItemId: values["work-item"] } : {}),
+          }),
+        );
+        return 0;
+      }
+
+      case "budget": {
+        if (sub === "status") {
+          const [m, p] = rest;
+          const phase = BudgetPhaseSchema.safeParse(p);
+          if (!m || !phase.success)
+            return usage(io, "budget status <missionId> <PREPARATION|EXECUTION>");
+          io.out(JSON.stringify(jarvis.budget.status(m, phase.data), null, 2));
+          return 0;
+        }
+        if (sub === "grant") {
+          const [m, p, amount, ...flags] = rest;
+          const phase = BudgetPhaseSchema.safeParse(p);
+          const { values } = parseArgs({ args: flags, options: { reason: { type: "string" } } });
+          if (!m || !phase.success || !amount || !values.reason)
+            return usage(
+              io,
+              "budget grant <missionId> <PREPARATION|EXECUTION> <tokens> --reason <text>",
+            );
+          io.out(
+            jarvis.budget.grant({
+              missionId: m,
+              phase: phase.data,
+              amount: Number(amount),
+              actor: human,
+              reason: values.reason,
+            }),
+          );
+          return 0;
+        }
+        break;
+      }
+
+      case "audit":
+        if (sub !== "verify") break;
+        {
+          const broken = jarvis.audit.verify();
+          io.out(
+            broken === null ? "Audit chain verified." : `Audit chain BROKEN at event ${broken}.`,
+          );
+          return broken === null ? 0 : 1;
+        }
+
+      case "proposals": {
+        const pending = jarvis.proposals().listPending();
+        if (pending.length === 0) io.out("No proposals waiting.");
+        for (const p of pending) {
+          io.out(
+            `${p.id}  ${p.title}${p.duplicateOf ? `  (possible duplicate of ${p.duplicateOf})` : ""}`,
+          );
+          io.out(`  objective: ${p.objective}`);
+          for (const r of p.requirements) io.out(`  - ${r}`);
+        }
+        return 0;
+      }
+
+      case "proposal": {
+        const [id, ...flags] = rest;
+        if (!id || (sub !== "confirm" && sub !== "reject"))
+          return usage(io, "proposal confirm|reject <id> [--new]");
+        if (sub === "reject") {
+          jarvis.proposals().reject(id, human);
+          io.out("Rejected.");
+          return 0;
+        }
+        const out = jarvis.proposals().confirm(id, human, { asNew: flags.includes("--new") });
+        io.out(out.merged ? `Merged into ${out.workItemId}` : `Created ${out.workItemId}`);
+        return 0;
+      }
+
+      case "plan": {
+        const [wi, ...more] = rest;
+        const planUsage = "plan questions|answer|assume|submit|check|show|approve <workItem> ...";
+        if (!wi) return usage(io, planUsage);
+        const planning = jarvis.planning;
+        if (sub === "questions") {
+          for (const q of planning.generateQuestions(wi, human, jarvis.knowledge.load())) {
+            io.out(
+              `[${q.status}] (${q.impact}) ${q.category}: ${q.text}${q.status !== "OPEN" ? `\n    -> ${q.answer}` : ""}`,
+            );
+          }
+          return 0;
+        }
+        if (sub === "answer") {
+          const [category, ...text] = more;
+          if (!category || text.length === 0)
+            return usage(io, "plan answer <workItem> <category> <text...>");
+          planning.answer(wi, category, text.join(" "), human);
+          io.out("Recorded.");
+          return 0;
+        }
+        if (sub === "assume") {
+          io.out(
+            `${planning.assumeConventions(wi, human)} low-impact question(s) settled by convention.`,
+          );
+          return 0;
+        }
+        if (sub === "submit") {
+          const [file] = more;
+          if (!file) return usage(io, "plan submit <workItem> <plan.json>");
+          const stored = planning.submitPlan(
+            wi,
+            JSON.parse(readFileSync(file, "utf8")) as never,
+            human,
+          );
+          io.out(`Plan v${stored.version} submitted. Estimate: ${stored.estimate} tokens.`);
+          return 0;
+        }
+        if (sub === "progress") {
+          const p = jarvis.planning.progress(wi);
+          for (const s of p.steps)
+            io.out(
+              `[${s.done ? "x" : " "}] ${s.id} ${s.title}${s.evidence.length ? `  (${s.evidence.join(", ")})` : ""}`,
+            );
+          for (const o of p.outOfPlan)
+            io.out(`  ! outside plan: ${o.type} ${o.target} (${o.operationId})`);
+          io.out(p.complete ? "Plan complete." : "Plan not complete.");
+          return p.complete ? 0 : 1;
+        }
+        if (sub === "done") {
+          const [step, ...ops] = more;
+          if (!step || ops.length === 0)
+            return usage(io, "plan done <workItem> <step> <operationId...>");
+          planning.markStep(wi, step, ops, human);
+          io.out("Step marked done.");
+          return 0;
+        }
+        if (sub === "check" || sub === "show") {
+          const verdict = planning.readiness(wi);
+          const current = planning.currentPlan(wi);
+          if (sub === "show" && current) {
+            io.out(
+              JSON.stringify(
+                {
+                  version: current.version,
+                  status: current.status,
+                  estimate: current.estimate,
+                  plan: current.plan,
+                },
+                null,
+                2,
+              ),
+            );
+          }
+          io.out(verdict.ready ? "READY: nothing blocks approval." : "NOT READY:");
+          for (const b of verdict.blockers) io.out(`  - ${b.code}: ${b.detail}`);
+          for (const w of verdict.warnings) io.out(`  ! ${w}`);
+          return verdict.ready ? 0 : 1;
+        }
+        if (sub === "approve") {
+          const current = planning.currentPlan(wi);
+          if (!current) {
+            io.err("No plan submitted.");
+            return 1;
+          }
+          io.out(`Plan v${current.version}: ${current.plan.summary}`);
+          io.out(`Steps: ${current.plan.steps.length}  Estimated tokens: ${current.estimate}`);
+          if (
+            !more.includes("--yes") &&
+            !(await io.confirm("Approve this plan and its token estimate?"))
+          ) {
+            io.out("Not approved.");
+            return 1;
+          }
+          planning.approvePlan(wi, human);
+          io.out(
+            "Plan approved. Grant an EXECUTION budget at least as large as the estimate, then start execution.",
+          );
+          return 0;
+        }
+        return usage(io, planUsage);
+      }
+
+      case "notes": {
+        if (sub === "path") {
+          io.out(jarvis.notes.dir);
+          return 0;
+        }
+        if (sub === "write" && rest[0]) {
+          io.out(jarvis.refreshNotes(rest[0]) ?? "Could not write the note (see audit).");
+          return 0;
+        }
+        return usage(io, "notes path | notes write <workItem>");
+      }
+
+      case "report": {
+        const { values } = parseArgs({
+          args: rest,
+          options: {
+            base: { type: "string" },
+            head: { type: "string" },
+            summary: { type: "string" },
+          },
+        });
+        const run = sub ? jarvis.store.getRun(sub) : undefined;
+        if (!run || !values.base || !values.head) {
+          return usage(io, "report <runId> --base <ref> --head <ref> [--summary <text>]");
+        }
+        const item = jarvis.store.getWorkItem(run.workItemId)!;
+        const report = await buildChangeReport({
+          runner: new HostRunner(["git"], { inheritHome: true }),
+          repoRoot: jarvis.root,
+          db: jarvis.db,
+          workItem: item,
+          run,
+          base: values.base,
+          head: values.head,
+          summary: values.summary ?? item.objective,
+        });
+        io.out(renderChangeReport(report));
+        return 0;
+      }
+
+      case "retention": {
+        const retentionUsage = "retention apply --days <n>";
+        if (sub !== "apply") return usage(io, retentionUsage);
+        const { values } = parseArgs({
+          args: rest,
+          options: { days: { type: "string" }, yes: { type: "boolean" } },
+        });
+        const days = Number(values.days);
+        if (!Number.isFinite(days) || days < 1) return usage(io, retentionUsage);
+        if (
+          !values.yes &&
+          !(await io.confirm(
+            `Archive operational data older than ${days} day(s)? Audit and ledgers are kept.`,
+          ))
+        ) {
+          return 1;
+        }
+        io.out(
+          JSON.stringify(
+            applyRetention(jarvis.db, jarvis.audit, {
+              projectId: jarvis.project.id,
+              olderThanDays: days,
+            }),
+            null,
+            2,
+          ),
+        );
+        return 0;
+      }
+
+      case "scan": {
+        const { claims, refreshed, removed } = jarvis.scan();
+        io.out(
+          `${claims.length} claims. Re-analyzed: ${refreshed.join(", ") || "nothing"}. Dropped: ${removed.join(", ") || "nothing"}.`,
+        );
+        return 0;
+      }
+
+      case "know": {
+        const query = [sub, ...rest].filter(Boolean).join(" ");
+        if (!query) return usage(io, "know <query>");
+        for (const { claim, validity } of jarvis.knowledge.retrieve(query))
+          io.out(
+            `[${validity}] ${claim.statement}  (${claim.evidence.map((e) => e.path).join(", ")})`,
+          );
+        return 0;
+      }
+
+      case "mcp": {
+        const { values } = parseArgs({
+          args: [sub, ...rest].filter((x): x is string => Boolean(x)),
+          options: { client: { type: "string" } },
+          strict: false,
+        });
+        const [{ StdioServerTransport }, { createMcpServer }] = await Promise.all([
+          import("@modelcontextprotocol/sdk/server/stdio.js"),
+          import("../mcp/server.js"),
+        ]);
+        await createMcpServer(
+          jarvis,
+          typeof values.client === "string" ? values.client : "client",
+        ).connect(new StdioServerTransport());
+        return new Promise<number>(() => undefined); // serve until the client disconnects
+      }
+    }
+    io.err(`Unknown command: ${command}${sub ? ` ${sub}` : ""}\n`);
+    io.err(HELP);
+    return 2;
+  } catch (error) {
+    io.err(error instanceof Error ? error.message : String(error));
+    return 1;
+  } finally {
+    if (command !== "mcp") jarvis.close();
+  }
 }
 
-function isMainModule(): boolean {
-  const entry = process.argv[1];
-  if (!entry) return false;
-  const self = fileURLToPath(import.meta.url).toLowerCase();
-  const invoked = resolve(entry).toLowerCase();
-  return self === invoked || invoked.replaceAll("\\", "/").endsWith("/cli/index.js");
-}
-
-if (isMainModule()) {
-  main()
-    .then((code) => {
-      process.exitCode = code;
-    })
-    .catch((error) => {
-      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-      process.exitCode = 1;
-    });
+function usage(io: Io, text: string): number {
+  io.err(`usage: ${text}`);
+  return 2;
 }
