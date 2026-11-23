@@ -114,3 +114,56 @@ export const WorkflowRunStatusSchema = z.enum([
   "CANCELLED",
 ]);
 export type WorkflowRunStatus = z.infer<typeof WorkflowRunStatusSchema>;
+
+export const ProjectSchema = z
+  .object({
+    id: IdSchema,
+    name: z.string().min(1).max(200),
+    root: z.string().min(1),
+    createdBy: IdSchema,
+    createdAt: IsoDateSchema,
+  })
+  .strict();
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const WorkItemSchema = z
+  .object({
+    id: IdSchema,
+    projectId: IdSchema,
+    title: z.string().min(1).max(300),
+    objective: z.string().min(1),
+    requirements: z.array(z.string()),
+    acceptanceCriteria: z.array(z.string()),
+    decisions: z.array(z.string()),
+    reviewFeedback: z.array(z.string()),
+    status: WorkItemStatusSchema,
+    referenceBranch: z.string().min(1),
+    version: z.number().int().positive(),
+    createdAt: IsoDateSchema,
+    updatedAt: IsoDateSchema,
+  })
+  .strict();
+export type WorkItem = z.infer<typeof WorkItemSchema>;
+
+export const WorkflowRunSchema = z
+  .object({
+    id: IdSchema,
+    projectId: IdSchema,
+    workItemId: IdSchema,
+    sequence: z.number().int().positive(),
+    status: WorkflowRunStatusSchema,
+    branch: z.string().nullable(),
+    worktreePath: z.string().nullable(),
+    checkpoint: z.record(z.unknown()),
+    version: z.number().int().positive(),
+    createdAt: IsoDateSchema,
+    updatedAt: IsoDateSchema,
+  })
+  .strict();
+export type WorkflowRun = z.infer<typeof WorkflowRunSchema>;
+
+export const BudgetPhaseSchema = z.enum(["PREPARATION", "EXECUTION"]);
+export type BudgetPhase = z.infer<typeof BudgetPhaseSchema>;
+
+export const ProjectPermissionSchema = z.enum(["project.admin", "mission.grant"]);
+export type ProjectPermission = z.infer<typeof ProjectPermissionSchema>;
