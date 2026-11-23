@@ -2,6 +2,7 @@
   "version": "1.0.0",
   "contracts": {
     "OperationRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "operationId": {
@@ -10,13 +11,19 @@
           "maxLength": 128
         },
         "projectId": {
-          "$ref": "#/properties/operationId"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "workItemId": {
-          "$ref": "#/properties/operationId"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "workflowRunId": {
-          "$ref": "#/properties/operationId"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "requestedBy": {
           "type": "object",
@@ -30,7 +37,9 @@
               ]
             },
             "id": {
-              "$ref": "#/properties/operationId"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
             }
           },
           "required": [
@@ -63,44 +72,22 @@
           "maxLength": 4096
         },
         "parameters": {
+          "default": {},
           "type": "object",
-          "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "$ref": "#/properties/parameters/additionalProperties"
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": {
-                  "$ref": "#/properties/parameters/additionalProperties"
-                }
-              }
-            ]
+          "propertyNames": {
+            "type": "string"
           },
-          "default": {}
+          "additionalProperties": {
+            "$ref": "#/definitions/__schema0"
+          }
         },
         "trust": {
+          "default": "UNTRUSTED",
           "type": "string",
           "enum": [
             "TRUSTED",
             "UNTRUSTED"
-          ],
-          "default": "UNTRUSTED"
+          ]
         }
       },
       "required": [
@@ -110,12 +97,47 @@
         "workflowRunId",
         "requestedBy",
         "type",
-        "target"
+        "target",
+        "parameters",
+        "trust"
       ],
       "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "definitions": {
+        "__schema0": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/__schema0"
+              }
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema0"
+              }
+            }
+          ]
+        }
+      }
     },
     "Approval": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -124,16 +146,24 @@
           "maxLength": 128
         },
         "operationId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "projectId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "workItemId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "workflowRunId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "requestedBy": {
           "type": "object",
@@ -147,7 +177,9 @@
               ]
             },
             "id": {
-              "$ref": "#/properties/id"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
             }
           },
           "required": [
@@ -194,15 +226,20 @@
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         },
         "expiresAt": {
-          "$ref": "#/properties/createdAt"
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         },
         "decidedBy": {
           "anyOf": [
             {
-              "$ref": "#/properties/id"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
             },
             {
               "type": "null"
@@ -212,7 +249,9 @@
         "decidedAt": {
           "anyOf": [
             {
-              "$ref": "#/properties/createdAt"
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
             },
             {
               "type": "null"
@@ -222,7 +261,9 @@
         "consumedAt": {
           "anyOf": [
             {
-              "$ref": "#/properties/createdAt"
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
             },
             {
               "type": "null"
@@ -247,10 +288,10 @@
         "decidedAt",
         "consumedAt"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "Project": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -268,11 +309,14 @@
           "minLength": 1
         },
         "createdBy": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         }
       },
       "required": [
@@ -282,10 +326,10 @@
         "createdBy",
         "createdAt"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "WorkItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -294,7 +338,9 @@
           "maxLength": 128
         },
         "projectId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "title": {
           "type": "string",
@@ -345,14 +391,18 @@
         },
         "version": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         },
         "updatedAt": {
-          "$ref": "#/properties/createdAt"
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         }
       },
       "required": [
@@ -370,10 +420,10 @@
         "createdAt",
         "updatedAt"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "WorkflowRun": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -382,14 +432,19 @@
           "maxLength": 128
         },
         "projectId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "workItemId": {
-          "$ref": "#/properties/id"
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         },
         "sequence": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "status": {
           "type": "string",
@@ -419,45 +474,27 @@
         },
         "checkpoint": {
           "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "$ref": "#/properties/checkpoint/additionalProperties"
-                }
-              },
-              {
-                "type": "object",
-                "additionalProperties": {
-                  "$ref": "#/properties/checkpoint/additionalProperties"
-                }
-              }
-            ]
+            "$ref": "#/definitions/__schema0"
           }
         },
         "version": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         },
         "updatedAt": {
-          "$ref": "#/properties/createdAt"
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         }
       },
       "required": [
@@ -474,9 +511,42 @@
         "updatedAt"
       ],
       "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "definitions": {
+        "__schema0": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/__schema0"
+              }
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema0"
+              }
+            }
+          ]
+        }
+      }
     },
     "Claim": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -488,6 +558,7 @@
           "maxLength": 500
         },
         "evidence": {
+          "minItems": 1,
           "type": "array",
           "items": {
             "type": "object",
@@ -504,8 +575,7 @@
               "sha256"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1
+          }
         },
         "confidence": {
           "type": "string",
@@ -525,7 +595,8 @@
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         }
       },
       "required": [
@@ -536,10 +607,10 @@
         "source",
         "createdAt"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "summary": {
@@ -548,15 +619,16 @@
           "maxLength": 1000
         },
         "kind": {
+          "default": "FEATURE",
           "type": "string",
           "enum": [
             "FEATURE",
             "BUGFIX",
             "REFACTOR"
-          ],
-          "default": "FEATURE"
+          ]
         },
         "certainties": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -577,19 +649,19 @@
               "evidence"
             ],
             "additionalProperties": false
-          },
-          "default": []
+          }
         },
         "proposals": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 3,
             "maxLength": 300
-          },
-          "default": []
+          }
         },
         "doubts": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -613,10 +685,10 @@
               "text"
             ],
             "additionalProperties": false
-          },
-          "default": []
+          }
         },
         "impactMatrix": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -636,17 +708,17 @@
                 ]
               },
               "note": {
+                "default": "",
                 "type": "string",
-                "maxLength": 300,
-                "default": ""
+                "maxLength": 300
               }
             },
             "required": [
-              "touchpoint"
+              "touchpoint",
+              "note"
             ],
             "additionalProperties": false
-          },
-          "default": []
+          }
         },
         "diagnosis": {
           "type": "object",
@@ -675,6 +747,8 @@
           "additionalProperties": false
         },
         "steps": {
+          "minItems": 1,
+          "maxItems": 60,
           "type": "array",
           "items": {
             "type": "object",
@@ -689,6 +763,7 @@
                 "maxLength": 200
               },
               "operations": {
+                "minItems": 1,
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -707,15 +782,14 @@
                     "GIT_RESET_HARD",
                     "GIT_CLEAN"
                   ]
-                },
-                "minItems": 1
+                }
               },
               "paths": {
+                "default": [],
                 "type": "array",
                 "items": {
                   "type": "string"
-                },
-                "default": []
+                }
               },
               "complexity": {
                 "type": "string",
@@ -731,26 +805,27 @@
                 "maxLength": 300
               },
               "dependsOn": {
+                "default": [],
                 "type": "array",
                 "items": {
                   "type": "string"
-                },
-                "default": []
+                }
               }
             },
             "required": [
               "id",
               "title",
               "operations",
+              "paths",
               "complexity",
-              "verification"
+              "verification",
+              "dependsOn"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1,
-          "maxItems": 60
+          }
         },
         "risks": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "object",
@@ -768,33 +843,41 @@
               "mitigation"
             ],
             "additionalProperties": false
-          },
-          "default": []
+          }
         },
         "testStrategy": {
-          "type": "string",
-          "default": ""
+          "default": "",
+          "type": "string"
         },
         "rollback": {
-          "type": "string",
-          "default": ""
+          "default": "",
+          "type": "string"
         },
         "assumptions": {
+          "default": [],
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
         }
       },
       "required": [
         "summary",
-        "steps"
+        "kind",
+        "certainties",
+        "proposals",
+        "doubts",
+        "impactMatrix",
+        "steps",
+        "risks",
+        "testStrategy",
+        "rollback",
+        "assumptions"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "Association": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "commit": {
@@ -828,10 +911,10 @@
         "state",
         "signals"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "CheckResult": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "name": {
@@ -867,10 +950,10 @@
         "passed",
         "outputTail"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "Finding": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "id": {
@@ -931,10 +1014,10 @@
         "paths",
         "recommendation"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "IntegrationReport": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "baseSha": {
@@ -1148,8 +1231,7 @@
         "recommendation",
         "reportHash"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     }
   }
 }

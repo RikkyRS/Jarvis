@@ -42,7 +42,7 @@ export const JsonValueSchema: z.ZodType<unknown> = z.lazy(() =>
     z.boolean(),
     z.null(),
     z.array(JsonValueSchema),
-    z.record(JsonValueSchema),
+    z.record(z.string(), JsonValueSchema),
   ]),
 );
 
@@ -57,7 +57,7 @@ export const OperationRequestSchema = z
     /** Path or ref the operation acts on. Paths are canonicalized by the gateway. */
     target: z.string().min(1).max(4096),
     /** Normalized, secret-free parameters (command argv, diff digest, remote, branch...). */
-    parameters: z.record(JsonValueSchema).default({}),
+    parameters: z.record(z.string(), JsonValueSchema).default({}),
     /** Provenance-based classification; never taken from an agent's claim. */
     trust: TrustSchema.default("UNTRUSTED"),
   })
@@ -156,7 +156,7 @@ export const WorkflowRunSchema = z
     status: WorkflowRunStatusSchema,
     branch: z.string().nullable(),
     worktreePath: z.string().nullable(),
-    checkpoint: z.record(JsonValueSchema),
+    checkpoint: z.record(z.string(), JsonValueSchema),
     version: z.number().int().positive(),
     createdAt: IsoDateSchema,
     updatedAt: IsoDateSchema,

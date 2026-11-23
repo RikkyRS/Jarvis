@@ -1,4 +1,4 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import type { ZodTypeAny } from "zod";
 import {
   ApprovalSchema,
@@ -80,7 +80,11 @@ function assertComplete(contract: string, node: unknown, path = "$"): void {
 export function exportSchemas(): { version: string; contracts: Record<string, unknown> } {
   const contracts: Record<string, unknown> = {};
   for (const [name, schema] of Object.entries(CONTRACTS)) {
-    const json = zodToJsonSchema(schema, { $refStrategy: "root", target: "jsonSchema7" });
+    const json = z.toJSONSchema(schema, {
+      target: "draft-7",
+      reused: "inline",
+      unrepresentable: "throw",
+    });
     assertComplete(name, json);
     contracts[name] = json;
   }

@@ -82,7 +82,7 @@ export function createMcpServer(jarvis: Jarvis, clientId = "client"): McpServer 
         workflowRunId: z.string(),
         type: OperationTypeSchema,
         target: z.string().min(1).max(4096),
-        parameters: z.record(z.unknown()).optional(),
+        parameters: z.record(z.string(), z.unknown()).optional(),
       },
     },
     async (args) => {
