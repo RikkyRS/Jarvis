@@ -244,6 +244,14 @@ The Preparation Budget follows an **adaptive, stage-based estimation model**:
 - Re-estimate only affected stages when scope or evidence changes; do not restart the entire estimate without cause.
 
 - **Execution Budget**: requested only after the user has reviewed and approved the prepared scope, deliverables, and acceptance criteria. The JARVIS presents an estimate (including uncertainty/range where practical) and requests explicit authorization for the implementation work.
+The Execution Budget follows the same **adaptive, stage-based estimation model**, with estimates organized around Work Items:
+
+- Estimate each Work Item's expected implementation, tests, review, and integration activities.
+- Aggregate Work Item estimates into the initial Mission Execution Budget, accounting for dependencies, shared activities, and uncertainty without double-counting.
+- Track actual usage by agent, Work Item, Workflow Run, Operation, provider, and model. Re-estimate affected work when evidence or scope changes materially.
+- If the remaining allowance is insufficient, pause before exceeding it, preserve checkpoints, report completed work and pending activities, estimate the additional tokens needed, and request an explicit additional grant.
+- Additional grants are independently authorized and auditable within the same Mission execution history. Neither the runtime nor agents may increase the allowance themselves.
+
 
 Preparation and execution allowances must be independently identifiable in the ledger and authorization records. The Preparation Budget itself requires an explicit authorization; its amount and any additional preparation grant are decided by the user, not invented or automatically increased by the runtime. If preparation allowance becomes insufficient, the JARVIS pauses AI-dependent preparation work, preserves its findings/checkpoints, reports what remains, estimates the additional preparation tokens needed, and waits for authorization. It must not begin implementation merely because preparation is complete or its budget is exhausted.
 
@@ -373,6 +381,7 @@ This document is the persistent architecture source of truth for the Generation 
 - Mission scope is clarified and agreed before the initial allowance is authorized; the JARVIS estimates token needs and communicates uncertainty.
 - Preparation and execution use separate, independently authorized Mission token budgets. Preparation covers discovery/planning; execution is authorized only after the user approves the prepared scope and estimate. Preparation consumption is not deducted from the execution allowance, and the runtime cannot automatically increase either phase's budget.
 - Preparation allowance sizing uses an adaptive, stage-based estimate: determine the initial bounded allowance from the estimated preparation stages and uncertainty, monitor actual consumption, and request explicit additional authorization if new findings or remaining work exceed the allowance.
+- Execution allowance sizing uses an adaptive, Work-Item-based estimate covering implementation, tests, review, and integration. The Mission execution allowance aggregates these estimates with dependencies and uncertainty; insufficient allowance pauses execution and requires an explicit additional grant.
 - At insufficient allowance, pause AI-dependent work with recoverable checkpoints, report progress and remaining work, estimate the additional requirement, and wait for user authorization.
 - Completed Missions retain their history and usage ledger. User-requested revisions form a new work stage and require a new authorization when additional tokens are needed.
 
