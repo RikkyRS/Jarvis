@@ -342,7 +342,7 @@ This document is the persistent architecture source of truth for the Generation 
 - Preserve the public repository history and keep `main` intact during the redesign.
 - Work in the isolated evolution branch `feat/approval-gate-foundation`.
 - A clean redesign is allowed; legacy local operational data and compatibility are not mandatory.
-- Domain hierarchy: Project → Work Item → Workflow Run → Operations, with operation-specific approvals.
+- Domain hierarchy: Project → Mission → Work Item → Workflow Run → Operations, with operation-specific approvals. A Mission is a durable user-defined outcome and owns its authorized token budget.
 - Parallel work isolation: hybrid Worktree model, reference branch per Work Item and isolated Worktree per Workflow Run.
 - Work Items remain reopenable after a Worktree closes or an external reviewer requests changes; a new Workflow Run can continue the same Work Item.
 - Use an independent Integration Resolver to assess the whole candidate branch, including multiple accumulated PRs/contributions, before promotion to `main`.
@@ -351,10 +351,11 @@ This document is the persistent architecture source of truth for the Generation 
 - A failed global integration should be traced to affected contributions where possible, so only the relevant Work Item(s) need reopening.
 - Clarify requirements before implementation, batch material questions, avoid repeating known valid information, and document acceptance criteria.
 - Produce evidence-backed change reports explaining what changed and why, with files/symbols, approximate line ranges, commit/diff references, and actual test results.
-- Token budget: shared per project, with usage tracked by agent/task/run/operation/provider/model; token counts only, no mandatory financial budget.
-- Token exhaustion: hybrid policy — optimize and reprioritize as the budget is consumed, then pause AI-dependent work at the hard limit with recoverable checkpoints.
-- Token budget renewal: hybrid recurring base allowance per Project plus explicitly authorized additional token grants; each Project configures its own recurring period length, IANA time zone, and local renewal clock (default `00:00`), with instants persisted in UTC.
-- Unused token balances use capped carryover: up to a configurable cap rolls into the next period; the excess expires. The numeric cap remains open.
+- Token budget: shared within each Mission, with usage tracked by Project, Mission, agent, Work Item, Workflow Run, operation, provider, and model.
+- Initial and additional token grants require explicit user authorization and immutable audit records; the runtime cannot increase its own allowance.
+- Mission scope is clarified and agreed before the initial allowance is authorized; the JARVIS estimates token needs and communicates uncertainty.
+- At insufficient allowance, pause AI-dependent work with recoverable checkpoints, report progress and remaining work, estimate the additional requirement, and wait for user authorization.
+- Completed Missions retain their history and usage ledger. User-requested revisions form a new work stage and require a new authorization when additional tokens are needed.
 
 ### Proposed, not yet finalized
 
