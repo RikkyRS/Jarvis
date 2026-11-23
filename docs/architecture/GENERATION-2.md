@@ -57,7 +57,7 @@ Store          Engine               |
        - Usage Tracker
 ```
 
-This is a logical separation. The first implementation may remain one local Node.js process backed by SQLite.
+This is a logical separation. The first implementation may remain one local Node.js process backed by SQLite, behind persistence interfaces that avoid coupling domain logic to a database vendor.
 
 ## Runtime boundaries
 
@@ -181,7 +181,7 @@ Independent Work Items / Workflow Runs / Worktrees
 
 The candidate branch must be validated as a whole. Passing individual PR checks does not imply that the combined branch is valid. Conversely, a conflict is a diagnostic signal requiring analysis, not automatically proof that an implementation agent failed.
 
-Promotion must be bound to the exact candidate SHA that was reviewed. If the branch changes after validation, the prior validation result and approval are stale and must be reevaluated. Commit, push, and merge/promotion are distinct protected operations with distinct approvals according to policy.
+The user selects the candidate branch for each integration operation; the JARVIS must not assume a permanent integration branch. The Integration Resolver selects a suitable contribution strategy (for example, merge or cherry-pick) based on repository state and contribution relationships, records provenance, and never silently changes source contributions. PR creation remains a separately controlled capability and is not automatic in the first generation. Conflicts may be investigated and a proposed correction prepared in an isolated Worktree; if no safe correction can be established, block integration and return affected Work Items for revision. Promotion must be bound to the exact candidate SHA that was reviewed. If the branch changes after validation, the prior validation result and approval are stale and must be reevaluated. Commit, push, and merge/promotion are distinct protected operations with distinct approvals according to policy.
 
 ## Requirement clarification and execution quality
 
@@ -302,13 +302,16 @@ Agents cannot bypass this manager by calling a provider directly. Provider adapt
 6. **Delivery and evaluation**: when the agreed scope is complete, produce an evidence-backed report and submit the result for user evaluation.
 7. **Revision stage**: if the user requests changes, clarify and estimate the revision. Request a separately authorized additional Execution Budget when needed; preserve the original Mission history and all previous usage records.
 
-A grant must be auditable and immutable in the ledger: amount, phase (preparation/execution), grant type (initial/additional), authorizing actor, authorization timestamp, mission/scope version, reason, and relevant metadata. Preparation and execution grants are separate balances and cannot be transferred or silently combined. The runtime must never grant itself additional tokens. A user-approved increase changes only the authorized allowance for the specified phase through a distinct recorded event; it does not rewrite prior usage.
+A grant must be auditable and immutable in the ledger: amount, phase (preparation/execution), grant type (initial/additional), authorizing actor, authorization timestamp, mission/scope version, concise reason, and relevant metadata. The authorizing actor must be the Mission owner or a project administrator explicitly authorized by project access-control policy. Preparation and execution grants are separate balances and cannot be transferred or silently combined. The runtime must never grant itself additional tokens. A user-approved increase changes only the authorized allowance for the specified phase through a distinct recorded event; it does not rewrite prior usage. The authorization prompt presents the requested amount, current phase allowance, consumption, remaining balance, and concise reason before awaiting explicit confirmation.
 
 ### Budget exhaustion and efficiency
 
-- Configurable warning/restriction thresholds may notify the orchestrator, optimize context, reprioritize work, and prepare checkpoints. Initial numeric thresholds are proposals, not confirmed defaults.
+- The default warning threshold is 75% of the authorized phase allowance; the restriction threshold is 90%; the hard stop is 100%. Configuration may make thresholds more conservative but cannot weaken the hard stop or mandatory safeguards.
+- At the restriction threshold, reduce avoidable context, redundant calls, nonessential work, and expensive model routing where policy permits.
+- A critical-work reserve may be configured as a portion of the already-authorized phase allowance. It is not additional budget, must be visible in allowance accounting, and cannot be created or enlarged by the runtime without explicit authorization.
 - At the authorized hard limit, block new LLM calls and pause AI-dependent work with recoverable checkpoints. Deterministic operations may continue only if safe, useful, and permitted.
-- If a provider call is already in flight when the limit is reached, record its actual reported usage when available and prevent further calls. Do not claim that an incomplete call completed.
+- If a provider call is already in flight when the limit is reached, allow that call to settle, record actual reported usage when available, and prevent subsequent calls. Do not claim that an incomplete call completed.
+- When provider usage is unavailable, preserve the state as unavailable or estimated; never represent an estimate as provider-reported actual usage. If a late actual report arrives, append a reconciliation record linked to the original call, retain the earlier state for audit, and update derived totals without erasing history.
 - The orchestrator may reserve part of the already-authorized mission allowance for critical work; a reserve is not extra budget and cannot increase the authorized total.
 - **Context Builder** constructs minimal task-relevant context.
 - **Selective Retrieval** retrieves only relevant project knowledge and source evidence.
@@ -325,13 +328,15 @@ This is a token-count policy; it does not require financial cost tracking.
 
 ## Data architecture
 
-A clean schema baseline is allowed; legacy SQLite data is not a compatibility requirement. Separate operational state (workflows, checkpoints, locks, approvals, executions, events), project knowledge (versioned Markdown or structured documents with provenance), configuration, and secrets. SQLite is suitable for the initial local runtime. Knowledge files must be written atomically. Secrets must not enter knowledge documents, approval hashes, or ordinary logs.
+A clean schema baseline is allowed; legacy SQLite data is not a compatibility requirement. Use SQLite for the first local implementation, with repository/persistence interfaces that keep domain and application layers portable to PostgreSQL if a future deployment requires it. Separate operational state (workflows, checkpoints, locks, approvals, executions, events), project knowledge (versioned Markdown or structured documents with provenance), configuration, and secrets. Knowledge files must be written atomically. Secrets must not enter knowledge documents, approval hashes, or ordinary logs.
+
+Important domain events (state transitions, grants, approvals, protected operations, execution outcomes, reconciliation events, and audit-relevant decisions) are append-only and immutable. Maintain transactional current-state projections and checkpoints/snapshots for efficient reads and recovery; do not require every low-level internal action to become a domain event or impose full event sourcing on the entire system.
 
 A future shared deployment requires explicit identity, authentication, authorization, tenant isolation, and secret management. The local server must not simply be exposed to a network.
 
 ## Security baseline
 
-Threats include prompt injection in repository content, malicious MCP clients, confused-deputy behavior, forged/replayed approvals, command injection, path traversal and symlink escapes, malicious package scripts, secret exfiltration, concurrency races, and interrupted side effects. Start local-only, restrict project roots, minimize inherited environment, bound input/output, allowlist tools, and use OS-level process isolation where available.
+Threats include prompt injection in repository content, malicious MCP clients, confused-deputy behavior, forged/replayed approvals, command injection, path traversal and symlink escapes, malicious package scripts, secret exfiltration, concurrency races, and interrupted side effects. Start local-only, restrict project roots, minimize inherited environment, bound input/output, allowlist tools, and use OS-level process isolation where available. Default to least privilege and deny-by-default execution. Project configuration may tighten mandatory controls but may not disable them. Mission grants may be authorized by the Mission owner or a project administrator only when that administrator has explicit grant-authorization permission; enforce this through deterministic access control, not an AI agent.
 
 ## Git policy
 
@@ -386,16 +391,32 @@ This document is the persistent architecture source of truth for the Generation 
 - At insufficient allowance, pause AI-dependent work with recoverable checkpoints, report progress and remaining work, estimate the additional requirement, and wait for user authorization.
 - Completed Missions retain their history and usage ledger. User-requested revisions form a new work stage and require a new authorization when additional tokens are needed.
 
+### Confirmed by the user
+
+- Token warning threshold: 75%; restriction threshold: 90%; hard stop: 100%.
+- A configurable critical-work reserve may be carved out of the already-authorized phase allowance; it never increases the authorized total.
+- Initial and additional grants may be authorized by the Mission owner or a project administrator explicitly granted that permission by project access-control policy.
+- Additional-grant authorization presents the requested amount, current phase allowance, consumption, remaining balance, and concise reason, then waits for explicit confirmation.
+- Grant records are immutable and auditable. Provider usage unavailable at call completion remains explicitly unavailable/estimated; late actual usage creates a linked reconciliation record while preserving history.
+- In-flight provider calls are allowed to settle when the hard limit is reached; no subsequent calls start until a valid allowance is available.
+- The user selects the candidate branch for each integration operation. The Integration Resolver selects the appropriate contribution integration strategy based on evidence and repository state, recording provenance.
+- Conflicts may result in an isolated proposed correction. If no safe correction is available, block integration and return affected Work Items for revision.
+- Integration Resolver recommends; the human accepts; the Execution Gateway requires operation-specific authorization for promotion.
+- Any candidate branch change invalidates the prior global validation and approval; reevaluate the exact new SHA.
+- SQLite is the initial local database, with persistence abstractions designed to preserve a future PostgreSQL path.
+- Audit-significant domain events are immutable and append-only, with transactional current-state projections and checkpoints. Full event sourcing of every internal action is not required.
+- Security defaults to local-first, least privilege, deny-by-default execution, isolated processes, minimal environment, and mandatory safeguards that project configuration cannot weaken.
+- Change reports contain execution stages, a compact summary of the technical changes and why, and a concise interview-oriented learning note. The durable chronological Mission history preserves decisions, evidence, tests, and outcomes; no uncertainty range or lengthy estimate justification is required.
+
 ### Proposed, not yet finalized
 
-- Initial warning threshold of 70%, restriction threshold of 90%, and hard stop at 100%.
-- A protected token reserve for critical operations, carved out of the shared project budget.
 - Specific model-routing and context-compaction algorithms.
+- Detailed project role/permission administration UX and exact authorization policy for project administrators.
 - Exact technical acceptance criteria and schemas for Integration Resolver findings and contribution provenance.
+- Detailed domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
 
 ### Open decisions
 
-- Exact token warning/restriction threshold defaults and reserve policy.
-- Detailed grant schema, authorization UX, and accounting behavior for provider usage unavailable or reported late.
-- Detailed candidate branch/PR mechanics and merge strategy, to be decided against the actual repository workflow.
+- Exact project-admin permission lifecycle and revocation semantics for authorizing Mission grants.
+- Detailed PR intake/association mechanics (how existing PRs/commits are attached to Work Items and candidate branches) and supported merge/cherry-pick constraints.
 - Final domain contracts, persistence schema, state transitions, and threat model after implementation-level design review.
