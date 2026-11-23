@@ -1,9 +1,10 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { BudgetPhase, Principal } from "../domain/contracts.js";
 import { newId } from "../domain/ids.js";
-import { AuditLog } from "../persistence/audit.js";
+import type { AuditLog } from "../persistence/audit.js";
 import { inTransaction } from "../persistence/db.js";
-import { DomainError, DomainStore } from "../persistence/repositories.js";
+import type { DomainStore } from "../persistence/repositories.js";
+import { DomainError } from "../persistence/repositories.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 
 export type BudgetConfig = {

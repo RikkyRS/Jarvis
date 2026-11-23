@@ -35,7 +35,7 @@ export type PolicyDecision = z.infer<typeof PolicyDecisionSchema>;
 export const TrustSchema = z.enum(["TRUSTED", "UNTRUSTED"]);
 export type Trust = z.infer<typeof TrustSchema>;
 
-const JsonValueSchema: z.ZodType<unknown> = z.lazy(() =>
+export const JsonValueSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
     z.string(),
     z.number().finite(),
@@ -156,7 +156,7 @@ export const WorkflowRunSchema = z
     status: WorkflowRunStatusSchema,
     branch: z.string().nullable(),
     worktreePath: z.string().nullable(),
-    checkpoint: z.record(z.unknown()),
+    checkpoint: z.record(JsonValueSchema),
     version: z.number().int().positive(),
     createdAt: IsoDateSchema,
     updatedAt: IsoDateSchema,

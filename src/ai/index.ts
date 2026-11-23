@@ -1,5 +1,6 @@
 import type { BudgetPhase } from "../domain/contracts.js";
-import { MissionBudget, type BudgetStatus } from "../budget/index.js";
+import type { MissionBudget } from "../budget/index.js";
+import { type BudgetStatus } from "../budget/index.js";
 import { sha256Hex } from "../shared/canonical.js";
 import type { Scheduler } from "../runtime/scheduler.js";
 

@@ -96,14 +96,14 @@ describe("execution gateway", () => {
     expect(audit.verify()).toBeNull();
   });
 
-  it("blocks critical operations even if an approval exists", async () => {
+  it("[R-GATE-01] blocks critical operations even if an approval exists", async () => {
     const { gateway } = build({ handlers: { GIT_FORCE_PUSH: okHandler } });
     const result = await gateway.execute(req({ type: "GIT_FORCE_PUSH", target: "origin/main" }));
     expect(result.outcome).toBe("BLOCKED");
     expect(result.decision).toBe("BLOCKED");
   });
 
-  it("denies path traversal and absolute escapes", async () => {
+  it("[R-PATH-01] denies path traversal and absolute escapes", async () => {
     const { gateway } = build();
     expect((await gateway.execute(req({ target: "../outside.txt" }))).reason).toBe("PATH_ESCAPE");
     expect((await gateway.execute(req({ target: join(root, "..", "x.txt") }))).reason).toBe(
@@ -112,7 +112,7 @@ describe("execution gateway", () => {
     expect((await gateway.execute(req({ target: "src/\0a" }))).reason).toBe("PATH_ESCAPE");
   });
 
-  it("denies symlink escapes", async () => {
+  it("[R-PATH-02] denies symlink escapes", async () => {
     const outside = mkdtempSync(join(tmpdir(), "jarvis-out-"));
     try {
       symlinkSync(outside, join(root, "link"), "junction");
@@ -125,7 +125,7 @@ describe("execution gateway", () => {
     rmSync(outside, { recursive: true, force: true });
   });
 
-  it("denies replay of an executed operation id", async () => {
+  it("[R-REPLAY-01] denies replay of an executed operation id", async () => {
     const { gateway } = build();
     const r = req();
     expect((await gateway.execute(r)).outcome).toBe("SUCCEEDED");
@@ -137,7 +137,7 @@ describe("execution gateway", () => {
     expect((await gateway.execute(req({ projectId: "other" }))).reason).toBe("PROJECT_MISMATCH");
   });
 
-  it("fails success claims that carry no evidence", async () => {
+  it("[R-EVIDENCE-01] fails success claims that carry no evidence", async () => {
     const { gateway } = build({
       handlers: { FILE_EDIT: async () => ({ ok: true, evidence: {} }) },
     });
@@ -157,7 +157,7 @@ describe("execution gateway", () => {
     expect(result.evidence["error"]).toBe("boom");
   });
 
-  it("never runs untrusted project code without a container", async () => {
+  it("[R-ISO-01] never runs untrusted project code without a container", async () => {
     const without = build();
     const blocked = await without.gateway.execute(req({ type: "TEST_RUN", target: "src" }));
     expect(blocked.reason).toBe("ISOLATION_UNAVAILABLE");
@@ -178,7 +178,7 @@ describe("operation-specific approvals", () => {
   const commit = (over: Partial<OperationRequestInput> = {}) =>
     req({ type: "GIT_COMMIT", target: "feature/x", parameters: { diff: "d1" }, ...over });
 
-  it("denies a high-risk operation without approval", async () => {
+  it("[R-APPROVAL-05] denies a high-risk operation without approval", async () => {
     const { gateway } = build();
     expect((await gateway.execute(commit())).reason).toBe("APPROVAL_NOT_FOUND");
   });
@@ -190,7 +190,7 @@ describe("operation-specific approvals", () => {
     expect((await gateway.execute(r)).reason).toBe("APPROVAL_NOT_APPROVED");
   });
 
-  it("executes once with a human approval and refuses replay of the approval", async () => {
+  it("[R-APPROVAL-06] executes once with a human approval and refuses replay of the approval", async () => {
     const { gateway, approvals } = build();
     const r = commit();
     const a = gateway.requestApproval(r, 60_000);
@@ -203,7 +203,7 @@ describe("operation-specific approvals", () => {
     expect(approvals.get(a.id)?.status).toBe("CONSUMED");
   });
 
-  it("rejects approval by an agent or system principal", () => {
+  it("[R-APPROVAL-01] rejects approval by an agent or system principal", () => {
     const { gateway, approvals } = build();
     const a = gateway.requestApproval(commit(), 60_000);
     expect(() => approvals.approve(a.id, agent)).toThrow(ApprovalError);
@@ -211,7 +211,7 @@ describe("operation-specific approvals", () => {
     expect(approvals.get(a.id)?.status).toBe("PENDING");
   });
 
-  it("invalidates the approval if parameters, target or actor change", async () => {
+  it("[R-APPROVAL-02] invalidates the approval if parameters, target or actor change", async () => {
     for (const change of [
       { parameters: { diff: "d2" } },
       { target: "feature/y" },
@@ -225,7 +225,7 @@ describe("operation-specific approvals", () => {
     }
   });
 
-  it("expires approvals", async () => {
+  it("[R-APPROVAL-04] expires approvals", async () => {
     const { gateway, approvals } = build();
     const r = commit();
     approvals.approve(gateway.requestApproval(r, 1_000).id, human);
@@ -233,7 +233,7 @@ describe("operation-specific approvals", () => {
     expect((await gateway.execute(r)).reason).toBe("APPROVAL_EXPIRED");
   });
 
-  it("does not burn the approval when execution is refused before running", async () => {
+  it("[R-APPROVAL-07] does not burn the approval when execution is refused before running", async () => {
     const { gateway, approvals } = build({ handlers: {} });
     const r = commit();
     const a = gateway.requestApproval(r, 60_000);
@@ -251,7 +251,7 @@ describe("operation-specific approvals", () => {
 });
 
 describe("audit log", () => {
-  it("is append-only and detects tampering", async () => {
+  it("[R-AUDIT-01] is append-only and detects tampering", async () => {
     const { gateway, audit } = build();
     await gateway.execute(req());
     await gateway.execute(req());

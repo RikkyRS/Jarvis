@@ -145,7 +145,7 @@ describe("AI runtime and token governance", () => {
     expect(s.used).toBeGreaterThan(0);
   });
 
-  it("detects unproductive loops and caps output", async () => {
+  it("[R-LOOP-01] detects unproductive loops and caps output", async () => {
     budget.grant({ missionId, phase: "EXECUTION", amount: 100_000, actor: owner, reason: "r" });
     let seen: ProviderRequest | undefined;
     const provider = new FakeProvider("p", [{ id: "m", tier: 1 }], (r) => {

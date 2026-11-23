@@ -1,7 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { OperationRequestInput, Principal, Trust, WorkflowRun } from "../domain/contracts.js";
 import type { ExecutionGateway, ExecutionResult } from "../gateway/index.js";
-import { DomainError, DomainStore } from "../persistence/repositories.js";
+import type { DomainStore } from "../persistence/repositories.js";
+import { DomainError } from "../persistence/repositories.js";
 
 export class UnresolvedFailureError extends DomainError {
   constructor(readonly failures: { operationId: string; type: string; target: string }[]) {

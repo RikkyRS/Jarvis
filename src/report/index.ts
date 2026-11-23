@@ -97,7 +97,6 @@ export async function buildChangeReport(input: ReportInput): Promise<ChangeRepor
   }
 
   let current: FileChange | undefined;
-  let newLine = 0;
   for (const line of (await git(["diff", "-U0", "--no-color", range])).split("\n")) {
     if (line.startsWith("+++ b/")) {
       current = files.get(line.slice(6));
@@ -106,14 +105,12 @@ export async function buildChangeReport(input: ReportInput): Promise<ChangeRepor
       if (m) {
         const start = Number(m[1]);
         const count = m[2] === undefined ? 1 : Number(m[2]);
-        newLine = start;
         if (count > 0) current.ranges.push({ start, end: start + count - 1 });
       }
     } else if (current && line.startsWith("+") && !line.startsWith("+++")) {
       const s = SYMBOL.exec(line);
       if (s && !current.symbols.some((x) => x.name === s[2]))
         current.symbols.push({ name: s[2]!, kind: s[1]! });
-      newLine += 1;
     }
   }
 

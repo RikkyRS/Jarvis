@@ -36,7 +36,7 @@ beforeEach(() => {
 const who = { agent: "implementer", provider: "test", model: "m1" };
 
 describe("domain store", () => {
-  it("runs the work item lifecycle and keeps context on reopen", () => {
+  it("[R-STATE-02] runs the work item lifecycle and keeps context on reopen", () => {
     const item = store.createWorkItem({
       projectId,
       actor: owner,
@@ -112,7 +112,7 @@ describe("mission token budget", () => {
     });
   });
 
-  it("needs BOTH permission and owner delegation for admin grants", () => {
+  it("[R-GRANT-01] needs BOTH permission and owner delegation for admin grants", () => {
     budget.grant({ missionId, phase: "EXECUTION", amount: 1000, actor: owner, reason: "init" });
     const add = () =>
       budget.grant({ missionId, phase: "EXECUTION", amount: 500, actor: admin, reason: "more" });
@@ -138,7 +138,7 @@ describe("mission token budget", () => {
     ).toThrow(DomainError);
   });
 
-  it("applies warning, restriction and hard stop thresholds", () => {
+  it("[R-BUDGET-03] applies warning, restriction and hard stop thresholds", () => {
     budget.grant({ missionId, phase: "EXECUTION", amount: 1000, actor: owner, reason: "init" });
     const spend = (n: number) => {
       const r = budget.reserve({ missionId, phase: "EXECUTION", estimate: n, critical: true });
@@ -188,7 +188,7 @@ describe("mission token budget", () => {
     });
   });
 
-  it("keeps unavailable usage as UNAVAILABLE and reconciles without erasing", () => {
+  it("[R-LEDGER-02] keeps unavailable usage as UNAVAILABLE and reconciles without erasing", () => {
     budget.grant({ missionId, phase: "EXECUTION", amount: 1000, actor: owner, reason: "init" });
     const r = budget.reserve({ missionId, phase: "EXECUTION", estimate: 200, critical: true });
     if (!r.ok) throw new Error("reserve failed");
@@ -203,13 +203,13 @@ describe("mission token budget", () => {
     );
   });
 
-  it("ledgers are immutable", () => {
+  it("[R-LEDGER-01] ledgers are immutable", () => {
     budget.grant({ missionId, phase: "EXECUTION", amount: 100, actor: owner, reason: "init" });
     expect(() => db.exec("UPDATE token_grants SET amount = 999999")).toThrow(/immutable/);
     expect(() => db.exec("DELETE FROM token_grants")).toThrow(/immutable/);
   });
 
-  it("rejects thresholds that weaken the hard stop", () => {
+  it("[R-BUDGET-04] rejects thresholds that weaken the hard stop", () => {
     const audit = new AuditLog(db);
     expect(
       () =>

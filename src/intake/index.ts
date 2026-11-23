@@ -1,12 +1,13 @@
 import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { AiRuntime } from "../ai/index.js";
+import type { AiRuntime } from "../ai/index.js";
 import type { BudgetPhase, Principal } from "../domain/contracts.js";
 import { newId } from "../domain/ids.js";
-import { AuditLog } from "../persistence/audit.js";
+import type { AuditLog } from "../persistence/audit.js";
 import { inTransaction } from "../persistence/db.js";
-import { DomainError, DomainStore } from "../persistence/repositories.js";
+import type { DomainStore } from "../persistence/repositories.js";
+import { DomainError } from "../persistence/repositories.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 
 /**
@@ -102,7 +103,13 @@ export function similarity(a: string, b: string): number {
 }
 
 const clean = (s: string): string =>
-  s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim();
+  [...s]
+    .filter((ch) => {
+      const c = ch.charCodeAt(0);
+      return c === 9 || c === 10 || c === 13 || (c >= 32 && c !== 127);
+    })
+    .join("")
+    .trim();
 
 export class Intake {
   constructor(

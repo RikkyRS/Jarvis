@@ -14,7 +14,7 @@ import {
 import { newId } from "../domain/ids.js";
 import { transitionItem, transitionRun } from "../domain/workflow.js";
 import { systemClock, type Clock } from "../shared/clock.js";
-import { AuditLog } from "./audit.js";
+import type { AuditLog } from "./audit.js";
 import { inTransaction } from "./db.js";
 
 export class DomainError extends Error {

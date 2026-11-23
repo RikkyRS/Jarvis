@@ -12,7 +12,7 @@ import { canonicalJson, fingerprint } from "../../src/shared/canonical.js";
 const human = { kind: "human", id: "rikky" } as const;
 
 describe("workflow state machine", () => {
-  it("allows the happy path and rejects shortcuts", () => {
+  it("[R-STATE-01] allows the happy path and rejects shortcuts", () => {
     expect(transitionRun("PLANNED", "PREPARING")).toBe("PREPARING");
     expect(transitionRun("AWAITING_EXECUTION_APPROVAL", "RUNNING")).toBe("RUNNING");
     expect(() => transitionRun("PLANNED", "RUNNING")).toThrow(InvalidTransitionError);
@@ -48,7 +48,7 @@ describe("policy", () => {
     }
   });
 
-  it("lets project config tighten but never weaken", () => {
+  it("[R-POLICY-01] lets project config tighten but never weaken", () => {
     expect(
       evaluatePolicy({ type: "FILE_EDIT", requestedBy: human }, { requireApproval: ["FILE_EDIT"] })
         .decision,

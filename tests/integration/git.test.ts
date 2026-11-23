@@ -84,7 +84,7 @@ describe("git handlers through the gateway", () => {
     expect(r.evidence["head"]).toBe(sh(root, "rev-parse", "HEAD"));
   });
 
-  it("stages, then commits only the exact approved diff", async () => {
+  it("[R-GIT-03] stages, then commits only the exact approved diff", async () => {
     writeFileSync(join(root, "a.txt"), "two\n");
     const stage = await gateway.execute(op({ type: "GIT_STAGE", target: "a.txt" }));
     const diffHash = stage.evidence["stagedDiffHash"] as string;
@@ -106,7 +106,7 @@ describe("git handlers through the gateway", () => {
     expect(sh(root, "log", "-1", "--format=%s")).toBe("change");
   });
 
-  it("never runs repository hooks", async () => {
+  it("[R-GIT-01] never runs repository hooks", async () => {
     const marker = join(root, "hook-ran");
     writeFileSync(
       join(root, ".git", "hooks", "pre-commit"),
@@ -125,7 +125,7 @@ describe("git handlers through the gateway", () => {
     expect(existsSync(marker)).toBe(false);
   });
 
-  it("pushes only when remote, branch and HEAD match, and verifies the remote", async () => {
+  it("[R-GIT-02] pushes only when remote, branch and HEAD match, and verifies the remote", async () => {
     const head = sh(root, "rev-parse", "HEAD");
     const base = { remote: "origin", branch: "main", expectedHead: head, remoteUrl: remote };
 
@@ -157,12 +157,12 @@ describe("git handlers through the gateway", () => {
     expect(sh(remote, "rev-parse", "main")).toBe(head);
   });
 
-  it("refuses to force push by policy", async () => {
+  it("[R-GATE-01] refuses to force push by policy", async () => {
     const r = await gateway.execute(op({ type: "GIT_FORCE_PUSH", target: "origin/main" }));
     expect(r.outcome).toBe("BLOCKED");
   });
 
-  it("creates and safely removes an isolated worktree", async () => {
+  it("[R-WORKTREE-01] creates and safely removes an isolated worktree", async () => {
     const add = await gateway.execute(
       op({
         type: "GIT_WORKTREE_ADD",
@@ -278,7 +278,7 @@ describe("file handlers", () => {
     expect(String(notAllowed.evidence["error"])).toContain("not allowlisted");
   });
 
-  it("does not leak the parent environment to child processes", async () => {
+  it("[R-ENV-01] does not leak the parent environment to child processes", async () => {
     process.env["JARVIS_TEST_SECRET"] = "s3cret";
     const r = await gateway.execute(
       op({
