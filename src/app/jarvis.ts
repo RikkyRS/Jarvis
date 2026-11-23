@@ -21,6 +21,12 @@ import {
 } from "../gateway/index.js";
 import { defaultHandlers } from "../git/handlers.js";
 import { Intake, type IntakeConfig } from "../intake/index.js";
+import {
+  AutonomyConfigSchema,
+  DEFAULT_AUTONOMY,
+  evaluateAutonomy,
+  type AutonomyConfig,
+} from "../autonomy/index.js";
 import { ContractStore } from "../contract/index.js";
 import { hardenDataDir } from "./privacy.js";
 import { KnowledgeStore } from "../knowledge/index.js";
@@ -60,6 +66,8 @@ export const ProjectConfigSchema = z
       .positive()
       .default(15 * 60 * 1000),
     requireApproval: z.array(z.string()).default([]),
+    /** How much JARVIS may do without asking. Edited only by the human; default SUPERVISED. */
+    autonomy: AutonomyConfigSchema.default(DEFAULT_AUTONOMY),
     /** Where the learning journal is written. Default: ~/Jarvis-Notas/<project>. */
     notesDir: z.string().optional(),
   })
@@ -115,6 +123,8 @@ export class Jarvis {
   /** Where the learning journal is written. */
   readonly notesDir: string;
   readonly human: Principal;
+  /** The effective policy (project configuration can only tighten it). */
+  readonly policyConfig: PolicyConfig;
 
   private constructor(options: JarvisOptions) {
     if (options.human.kind !== "human")
@@ -144,6 +154,13 @@ export class Jarvis {
     );
     this.store.onWorkItemTransition = (id) => this.refreshNotes(id);
     this.approvals = new ApprovalService(this.db, this.audit, clock);
+    this.policyConfig = {
+      ...options.policy,
+      requireApproval: [
+        ...(options.policy?.requireApproval ?? []),
+        ...(this.config.requireApproval as never[]),
+      ],
+    };
     this.gateway = new ExecutionGateway({
       projectId: this.project.id,
       projectRoot: this.root,
@@ -154,13 +171,7 @@ export class Jarvis {
       handlers: defaultHandlers(),
       hostRunner: new HostRunner(this.config.allowedCommands, { inheritHome: true }),
       ...(options.containerRunner ? { containerRunner: options.containerRunner } : {}),
-      policy: {
-        ...options.policy,
-        requireApproval: [
-          ...(options.policy?.requireApproval ?? []),
-          ...(this.config.requireApproval as never[]),
-        ],
-      },
+      policy: this.policyConfig,
       clock,
     });
     this.budget = new MissionBudget(this.db, this.audit, this.store, options.budget, clock);
@@ -236,6 +247,100 @@ export class Jarvis {
     this.notes.writeProjectOverview();
     this.notes.writeIndex();
     return result;
+  }
+
+  /** The autonomy the human configured. SUPERVISED unless they changed `.jarvis/config.json`. */
+  get autonomy(): AutonomyConfig {
+    return this.config.autonomy;
+  }
+
+  /**
+   * What the delegation would do for each Work Item right now, and why not when it would not.
+   * Read-only: it changes nothing.
+   */
+  autonomyStatus(missionId: string): {
+    level: AutonomyConfig["level"];
+    items: { workItemId: string; title: string; eligible: boolean; reasons: string[] }[];
+  } {
+    const allowance = this.budget.status(missionId, "EXECUTION").allowance;
+    const items = [];
+    for (const item of this.store.listWorkItems(this.project.id)) {
+      if (item.status === "CLOSED") continue;
+      const current = this.planning.currentPlan(item.id);
+      if (!current || current.status !== "DRAFT") continue;
+      const verdict = evaluateAutonomy({
+        plan: current.plan,
+        estimate: current.estimate,
+        readiness: this.planning.readiness(item.id),
+        config: this.config.autonomy,
+        policy: this.policyConfig,
+        executionAllowance: allowance,
+      });
+      items.push({ workItemId: item.id, title: item.title, ...verdict });
+    }
+    return { level: this.config.autonomy.level, items };
+  }
+
+  /**
+   * One pass of delegated work. For every draft plan that is eligible, approve it by delegation;
+   * then start every run that is waiting on an approved plan. Run by the human (or on their schedule).
+   * Anything above MEDIUM risk, or not eligible, is left for the human and reported with the reason.
+   */
+  autonomyTick(missionId: string): {
+    approvedPlans: string[];
+    startedRuns: string[];
+    confirmedRequests: string[];
+    waiting: { workItemId: string; reasons: string[] }[];
+  } {
+    const cfg = this.config.autonomy;
+    const out = {
+      approvedPlans: [] as string[],
+      startedRuns: [] as string[],
+      confirmedRequests: [] as string[],
+      waiting: [] as { workItemId: string; reasons: string[] }[],
+    };
+    if (cfg.level !== "INTERMEDIATE") return out;
+
+    if (cfg.autoConfirmInScope) {
+      const intake = this.intake({ missionId, phase: "PREPARATION", allowedSenders: new Set() });
+      for (const p of intake.listPending()) {
+        try {
+          out.confirmedRequests.push(intake.confirmByDelegation(p.id, cfg).workItemId);
+        } catch {
+          // Not an automatic case: it stays in the human's list.
+        }
+      }
+    }
+
+    const allowance = this.budget.status(missionId, "EXECUTION").allowance;
+    for (const item of this.store.listWorkItems(this.project.id)) {
+      if (item.status === "CLOSED") continue;
+      const current = this.planning.currentPlan(item.id);
+      if (current?.status === "DRAFT") {
+        try {
+          this.planning.approvePlanByDelegation(item.id, cfg, this.policyConfig, allowance);
+          out.approvedPlans.push(item.id);
+        } catch (error) {
+          out.waiting.push({
+            workItemId: item.id,
+            reasons: [error instanceof Error ? error.message : String(error)],
+          });
+        }
+      }
+      for (const run of this.store.listRuns(item.id)) {
+        if (run.status !== "AWAITING_EXECUTION_APPROVAL") continue;
+        try {
+          this.runtime.startExecutionByDelegation(run.id, missionId, cfg, this.policyConfig);
+          out.startedRuns.push(run.id);
+        } catch (error) {
+          out.waiting.push({
+            workItemId: item.id,
+            reasons: [error instanceof Error ? error.message : String(error)],
+          });
+        }
+      }
+    }
+    return out;
   }
 
   close(): void {

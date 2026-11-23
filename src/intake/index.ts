@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import type { AiRuntime } from "../ai/index.js";
 import type { BudgetPhase, Principal } from "../domain/contracts.js";
+import { AUTONOMY_ACTOR, autonomyFingerprint, type AutonomyConfig } from "../autonomy/index.js";
 import type { ContractStore } from "../contract/index.js";
 import { triageRequest, type Triage } from "../contract/triage.js";
 import { newId } from "../domain/ids.js";
@@ -318,6 +319,47 @@ export class Intake {
       });
     });
     return draft;
+  }
+
+  /**
+   * Confirm by the human's standing delegation. Only a request that triage found IN_SCOPE, with a
+   * contract or scope clause cited, and that is not a duplicate. Money questions (OUT_OF_SCOPE),
+   * doubts (UNCLEAR) and repeats always wait for the human.
+   */
+  confirmByDelegation(proposalId: string, config: AutonomyConfig): { workItemId: string } {
+    if (config.level !== "INTERMEDIATE" || !config.autoConfirmInScope)
+      throw new DomainError("Automatic confirmation is not enabled for this project.");
+    const p = this.getProposal(proposalId);
+    if (!p || p.status !== "PENDING") throw new DomainError("Proposal is not pending.");
+    const t = p.triage;
+    const grounded = t?.citations.some((c) => c.kind !== "HISTORY") ?? false;
+    if (!t || t.status !== "OK" || t.verdict !== "IN_SCOPE" || !grounded || p.duplicateOf)
+      throw new DomainError(
+        "Only a cited IN_SCOPE request that is not a duplicate can be confirmed automatically.",
+      );
+    const item = this.store.createWorkItem({
+      projectId: this.config.projectId,
+      actor: AUTONOMY_ACTOR,
+      title: p.title,
+      objective: p.objective,
+      requirements: p.requirements,
+      acceptanceCriteria: p.acceptanceCriteria,
+    });
+    inTransaction(this.db, () => {
+      this.db
+        .prepare(
+          "UPDATE task_proposals SET status='CONFIRMED', created_work_item_id=?, decided_by=?, decided_at=? WHERE id=?",
+        )
+        .run(item.id, "delegation:" + config.level, this.clock().toISOString(), proposalId);
+      this.audit.append({
+        projectId: this.config.projectId,
+        kind: "intake.proposal_auto_confirmed",
+        actor: AUTONOMY_ACTOR,
+        subject: proposalId,
+        payload: { workItemId: item.id, configFingerprint: autonomyFingerprint(config) },
+      });
+    });
+    return { workItemId: item.id };
   }
 
   /** What is waiting for the human: unprocessed messages and pending proposals. */

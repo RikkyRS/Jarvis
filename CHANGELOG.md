@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Delegated autonomy (`src/autonomy`): the human sets, once, how much JARVIS may do without asking (`jarvis autonomy set INTERMEDIATE`). At INTERMEDIATE a plan whose operations are all LOW or MEDIUM risk is approved and started by the delegation (`jarvis autonomy tick`); commit, push, merge and anything HIGH or CRITICAL still wait for the human. Optional automatic confirmation of cited IN_SCOPE client requests. Every automatic decision is attributed to the `autonomy` actor with the fingerprint of the configuration that allowed it. Read-only MCP `jarvis_autonomy_status`.
+- Dependencies: zod 4 (fixes a high-severity advisory), vitest 5, eslint 10, actions v7; `npm audit` clean.
+
 - Engineering method in the plan contract: certainties (with evidence), proposals and doubts (an open doubt blocks approval), an optional impact matrix (a row without a decision blocks), and a mandatory diagnosis for bug-fix plans.
 - Blind review (`src/review/blind.ts`, `jarvis review blind`): sees only the approved plan, criteria and code; deterministic check for steps whose paths were never touched; verdict computed from findings; advisory.
 - Cycle drafts (`jarvis cycle commit|pr`) from the approved plan; documentation drift (`jarvis docs-drift`).

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { userInfo } from "node:os";
@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
 import type { ProviderAdapter } from "../ai/index.js";
 import { ClaudeCodeProvider, OllamaProvider } from "../ai/providers.js";
+import { AutonomyConfigSchema, autonomyFingerprint } from "../autonomy/index.js";
 import { commitMessage, prDescription, type Lang } from "../cycle/artifacts.js";
 import { checkDocumentDrift, renderDrift } from "../knowledge/drift.js";
 import { blindReview, collectDiff, renderBlindReview } from "../review/blind.js";
@@ -80,6 +81,9 @@ export const HELP = `jarvis — deterministic engineering runtime
   review blind <workItem> --base <ref> --head <ref> --mission <id>   blind review: approved plan + code only, advisory
   cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]   commit message / PR description drafted from the approved plan
   docs-drift [file...]            which claims in README/CLAUDE.md no longer match the repository
+  autonomy status --mission <id>  what JARVIS would do on its own right now, and why not when it would not
+  autonomy set <SUPERVISED|INTERMEDIATE> [--max-estimate <tokens>] [--auto-confirm-in-scope]   how much it may do without asking (you decide, here)
+  autonomy tick --mission <id>    one pass of delegated work: approve and start what is eligible (up to MEDIUM risk)
   privacy                         where client data can go, and what to fix (changes nothing)
   digest                          what is waiting for you (messages, proposals with their scope verdict, approvals)
   proposals                       task proposals waiting for your decision
@@ -550,6 +554,78 @@ export async function run(
           io.out(renderDrift(r));
         }
         return aged > 0 ? 1 : 0;
+      }
+
+      case "autonomy": {
+        if (sub === "set") {
+          const [level, ...flags] = rest;
+          const { values } = parseArgs({
+            args: flags,
+            options: {
+              "max-estimate": { type: "string" },
+              "auto-confirm-in-scope": { type: "boolean" },
+            },
+          });
+          const parsed = AutonomyConfigSchema.safeParse({
+            level,
+            ...(values["max-estimate"]
+              ? { maxEstimateTokens: Number(values["max-estimate"]) }
+              : {}),
+            autoConfirmInScope: Boolean(values["auto-confirm-in-scope"]),
+          });
+          if (!parsed.success)
+            return usage(
+              io,
+              "autonomy set <SUPERVISED|INTERMEDIATE> [--max-estimate <tokens>] [--auto-confirm-in-scope]",
+            );
+          const dir = join(jarvis.root, ".jarvis");
+          mkdirSync(dir, { recursive: true });
+          const file = join(dir, "config.json");
+          const current = existsSync(file)
+            ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>)
+            : {};
+          writeFileSync(
+            file,
+            JSON.stringify({ ...current, autonomy: parsed.data }, null, 2) +
+              String.fromCharCode(10),
+          );
+          jarvis.audit.append({
+            projectId: jarvis.project.id,
+            kind: "config.autonomy_changed",
+            actor: human,
+            subject: jarvis.project.id,
+            payload: {
+              level: parsed.data.level,
+              configFingerprint: autonomyFingerprint(parsed.data),
+            },
+          });
+          io.out(
+            parsed.data.level === "INTERMEDIATE"
+              ? "Autonomy INTERMEDIATE: JARVIS approves and starts plans whose operations are all LOW or MEDIUM risk. Commit, push, merge and anything HIGH or CRITICAL still wait for you."
+              : "Autonomy SUPERVISED: every plan and every start waits for you.",
+          );
+          return 0;
+        }
+        const { values } = parseArgs({ args: rest, options: { mission: { type: "string" } } });
+        if ((sub !== "status" && sub !== "tick") || !values.mission)
+          return usage(io, "autonomy status|tick --mission <id>");
+        if (sub === "status") {
+          const s = jarvis.autonomyStatus(values.mission);
+          io.out(`Level: ${s.level}`);
+          if (s.items.length === 0) io.out("No draft plans waiting.");
+          for (const i of s.items)
+            io.out(
+              `${i.eligible ? "would run on its own" : "waits for you"}  ${i.workItemId}  ${i.title}${i.eligible ? "" : `  (${i.reasons.join("; ")})`}`,
+            );
+          return 0;
+        }
+        const t = jarvis.autonomyTick(values.mission);
+        io.out(
+          `Approved ${t.approvedPlans.length} plan(s), started ${t.startedRuns.length} run(s), confirmed ${t.confirmedRequests.length} request(s).`,
+        );
+        for (const w of t.waiting)
+          io.out(`waits for you: ${w.workItemId}  ${w.reasons.join("; ")}`);
+        return 0;
       }
 
       case "privacy": {

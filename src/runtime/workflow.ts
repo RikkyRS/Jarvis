@@ -1,8 +1,16 @@
 import type { DatabaseSync } from "node:sqlite";
+import {
+  AUTONOMY_ACTOR,
+  AUTONOMY_MAX_RISK,
+  autonomyFingerprint,
+  evaluateAutonomy,
+  type AutonomyConfig,
+} from "../autonomy/index.js";
 import type { OperationRequestInput, Principal, Trust, WorkflowRun } from "../domain/contracts.js";
 import type { ExecutionGateway, ExecutionResult } from "../gateway/index.js";
 import type { MissionBudget } from "../budget/index.js";
 import type { Planning } from "../planning/index.js";
+import type { PolicyConfig } from "../policy/index.js";
 import type { DomainStore } from "../persistence/repositories.js";
 import { DomainError } from "../persistence/repositories.js";
 
@@ -51,6 +59,57 @@ export class WorkflowRuntime {
       if (blocker) throw new DomainError(blocker);
     }
     return this.store.transitionRun(runId, "RUNNING", actor);
+  }
+
+  /**
+   * Start by the human's standing delegation (autonomy level INTERMEDIATE). It needs the same
+   * Execution allowance and an approved, still-ready plan, and the plan must still be eligible:
+   * nothing HIGH or CRITICAL ever starts on a delegation.
+   */
+  startExecutionByDelegation(
+    runId: string,
+    missionId: string,
+    config: AutonomyConfig,
+    policy: PolicyConfig,
+  ): WorkflowRun {
+    if (config.level !== "INTERMEDIATE")
+      throw new DomainError("Autonomous start is not enabled for this project.");
+    if (!this.budget || !this.planning) throw new DomainError("Budget and planning are required.");
+    const status = this.budget.status(missionId, "EXECUTION");
+    if (status.level === "NONE")
+      throw new DomainError("The Mission has no authorized Execution Budget.");
+    if (status.level === "EXHAUSTED")
+      throw new DomainError("The Execution Budget is exhausted; an explicit grant is required.");
+    const run = this.store.getRun(runId);
+    if (!run) throw new DomainError(`Unknown workflow run ${runId}.`);
+    const blocker = this.planning.executionBlocker(run.workItemId, status.allowance);
+    if (blocker) throw new DomainError(blocker);
+    const current = this.planning.currentPlan(run.workItemId)!;
+    const eligibility = evaluateAutonomy({
+      plan: current.plan,
+      estimate: current.estimate,
+      readiness: this.planning.readiness(run.workItemId),
+      config,
+      policy,
+      executionAllowance: status.allowance,
+    });
+    if (!eligibility.eligible)
+      throw new DomainError(
+        `Not eligible for an autonomous start: ${eligibility.reasons.join("; ")}.`,
+      );
+    const started = this.store.transitionRun(runId, "RUNNING", AUTONOMY_ACTOR);
+    this.store.audit.append({
+      projectId: run.projectId,
+      kind: "workflow_run.auto_started",
+      actor: AUTONOMY_ACTOR,
+      subject: runId,
+      payload: {
+        level: config.level,
+        maxRisk: AUTONOMY_MAX_RISK,
+        configFingerprint: autonomyFingerprint(config),
+      },
+    });
+    return started;
   }
 
   /** Executes one operation for a RUNNING run and checkpoints a failure instead of hiding it. */

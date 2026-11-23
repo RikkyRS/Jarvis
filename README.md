@@ -42,6 +42,8 @@ Client messages: forward or receive them (`jarvis inbox add`, WhatsApp webhook),
 
 Engineering method: plans separate certainties (with evidence), proposals and doubts; a bug-fix plan must show its cause; a blind reviewer compares the result with the approved plan; `jarvis cycle` drafts the commit and PR text; `jarvis docs-drift` finds documentation that no longer matches the code. A Claude Code plugin (`plugin/`) exposes them as `/jarvis:plan`, `dev`, `review`, `cycle` and `toc`. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+Autonomy: `jarvis autonomy set INTERMEDIATE` lets JARVIS approve and start plans whose operations are all LOW or MEDIUM risk without asking; commit, push, merge and anything HIGH or CRITICAL always wait for you. Only you can change the level, and every automatic decision is audited as the `autonomy` actor. See [`docs/AUTONOMIA.md`](docs/AUTONOMIA.md).
+
 ## Verified against the real thing
 
 - The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.

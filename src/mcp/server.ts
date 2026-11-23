@@ -24,6 +24,7 @@ export const MCP_TOOL_NAMES = [
   "jarvis_plan_readiness",
   "jarvis_mark_step",
   "jarvis_plan_progress",
+  "jarvis_autonomy_status",
 ] as const;
 
 const text = (value: unknown, isError = false) => ({
@@ -182,6 +183,16 @@ export function createMcpServer(jarvis: Jarvis, clientId = "client"): McpServer 
           text: h.text,
         })),
       ),
+  );
+
+  server.registerTool(
+    "jarvis_autonomy_status",
+    {
+      description:
+        "Read-only: the autonomy level the human configured and, for each draft plan, whether it would run on the delegation or wait for the human, with the reasons. You cannot change the level or trigger approval.",
+      inputSchema: { missionId: z.string() },
+    },
+    async ({ missionId }) => text(jarvis.autonomyStatus(missionId)),
   );
 
   server.registerTool(

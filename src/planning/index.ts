@@ -1,4 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
+import {
+  AUTONOMY_ACTOR,
+  AUTONOMY_MAX_RISK,
+  autonomyFingerprint,
+  evaluateAutonomy,
+  type AutonomyConfig,
+} from "../autonomy/index.js";
 import { z } from "zod";
 import type { AiRuntime } from "../ai/index.js";
 import type { BudgetPhase, Principal, WorkItem } from "../domain/contracts.js";
@@ -8,6 +15,7 @@ import type { Claim } from "../knowledge/index.js";
 import type { AuditLog } from "../persistence/audit.js";
 import { inTransaction } from "../persistence/db.js";
 import { DomainError, type DomainStore } from "../persistence/repositories.js";
+import type { PolicyConfig } from "../policy/index.js";
 import { fingerprint } from "../shared/canonical.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 
@@ -756,6 +764,40 @@ export class Planning {
     return result;
   }
 
+  /**
+   * Approval by the human's standing delegation (autonomy level INTERMEDIATE). The same readiness
+   * rules apply, and the plan must be eligible: every operation LOW or MEDIUM, within the estimate
+   * limit and the authorized Execution allowance. Attributed to the `autonomy` actor, never to a human.
+   */
+  approvePlanByDelegation(
+    workItemId: string,
+    config: AutonomyConfig,
+    policy: PolicyConfig,
+    executionAllowance: number,
+  ): StoredPlan {
+    const current = this.currentPlan(workItemId);
+    if (!current || current.status !== "DRAFT")
+      throw new DomainError("There is no draft plan to approve.");
+    const verdict = this.readiness(workItemId);
+    const eligibility = evaluateAutonomy({
+      plan: current.plan,
+      estimate: current.estimate,
+      readiness: verdict,
+      config,
+      policy,
+      executionAllowance,
+    });
+    if (!eligibility.eligible)
+      throw new DomainError(
+        `Not eligible for autonomous approval: ${eligibility.reasons.join("; ")}.`,
+      );
+    return this.commitApproval(workItemId, "delegation:" + config.level, AUTONOMY_ACTOR, {
+      level: config.level,
+      maxRisk: AUTONOMY_MAX_RISK,
+      configFingerprint: autonomyFingerprint(config),
+    });
+  }
+
   approvePlan(workItemId: string, actor: Principal): StoredPlan {
     if (actor.kind !== "human") throw new DomainError("Only a human can approve a plan.");
     const verdict = this.readiness(workItemId);
@@ -763,6 +805,15 @@ export class Planning {
       throw new DomainError(
         `Plan is not ready: ${verdict.blockers.map((b) => b.code).join(", ")}.`,
       );
+    return this.commitApproval(workItemId, actor.id, actor, {});
+  }
+
+  private commitApproval(
+    workItemId: string,
+    approvedBy: string,
+    auditActor: Principal,
+    extra: Record<string, unknown>,
+  ): StoredPlan {
     const current = this.currentPlan(workItemId)!;
     const item = this.item(workItemId);
     inTransaction(this.db, () => {
@@ -770,16 +821,18 @@ export class Planning {
         .prepare(
           "UPDATE plans SET status='APPROVED', approved_by=?, approved_at=? WHERE id = ? AND status='DRAFT'",
         )
-        .run(actor.id, this.clock().toISOString(), current.id);
+        .run(approvedBy, this.clock().toISOString(), current.id);
       this.audit.append({
         projectId: item.projectId,
-        kind: "planning.plan_approved",
-        actor,
+        kind:
+          auditActor.kind === "human" ? "planning.plan_approved" : "planning.plan_auto_approved",
+        actor: auditActor,
         subject: current.id,
         payload: {
           version: current.version,
           estimateTokens: current.estimate,
           fingerprint: current.fingerprint,
+          ...extra,
         },
       });
     });

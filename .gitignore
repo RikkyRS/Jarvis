@@ -11,3 +11,5 @@ _incoming_cli/
 _incoming_impact/
 .DS_Store
 *.log
+
+.vitest/
