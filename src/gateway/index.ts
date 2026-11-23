@@ -27,6 +27,16 @@ const PATH_TARGET_TYPES: ReadonlySet<OperationType> = new Set([
   "GIT_WORKTREE_ADD",
   "GIT_WORKTREE_REMOVE",
 ]);
+/** Operations that write to a target path. */
+const WRITE_TYPES: ReadonlySet<OperationType> = new Set(["FILE_EDIT", "GIT_STAGE"]);
+
+/** `.jarvis/` is JARVIS-owned; only `.jarvis/wt/` (isolated worktrees) is open to project work. */
+export function isProtectedPath(relativeTarget: string): boolean {
+  const p = relativeTarget.replaceAll("\\", "/").replace(/^\.\//, "");
+  const inside = p === ".jarvis" || p.startsWith(".jarvis/");
+  return inside && !p.startsWith(".jarvis/wt/");
+}
+
 /** Operations that execute project-provided code and therefore need the trust check. */
 const EXECUTES_PROJECT_CODE: ReadonlySet<OperationType> = new Set(["TEST_RUN"]);
 
@@ -169,6 +179,11 @@ export class ExecutionGateway {
         if (error instanceof PathEscapeError) return finish("DENIED", "PATH_ESCAPE", null, null);
         throw error;
       }
+    }
+    // JARVIS control files (config, state, journal, knowledge) are never writable through the gateway:
+    // otherwise an agent could grant itself trust or rewrite its own audit trail. Worktrees stay usable.
+    if (WRITE_TYPES.has(request.type) && isProtectedPath(target)) {
+      return finish("DENIED", "PROTECTED_PATH", null, null, {}, target);
     }
     // Approvals bind to the canonical target, so a different spelling of the same path still matches.
     const bound: OperationRequest = { ...request, target };

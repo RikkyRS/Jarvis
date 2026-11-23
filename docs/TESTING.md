@@ -57,6 +57,7 @@ The six requirements the project is judged against come first.
 | R-REPLAY-01      | An executed operation id cannot run twice                                                                               | adversarial |
 | R-EVIDENCE-01    | Success without evidence is reported as failure                                                                         | integration |
 | R-PATH-01        | Path traversal is denied                                                                                                | adversarial |
+| R-PATH-03        | An agent cannot write JARVIS control files (config, state, journal, knowledge)                                          | adversarial |
 | R-PATH-02        | Symlink escapes are denied                                                                                              | adversarial |
 | R-ENV-01         | Child processes never inherit the parent environment                                                                    | adversarial |
 | R-ISO-01         | Untrusted project code never runs on the host; an agent's trust claim is ignored                                        | adversarial |
