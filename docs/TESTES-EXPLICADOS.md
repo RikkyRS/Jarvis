@@ -1,6 +1,6 @@
 # Os testes do JARVIS, por área
 
-Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **201 testes, 198 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
+Este arquivo substitui o guia antigo (que explicava os 57 testes da Geração 1). Ele é **gerado dos testes reais** da Geração 2 por `scripts/gen-test-guide.mjs`: **213 testes, 210 passando, 3 ignorados**. Os ignorados são verificações opt-in que dependem de Docker, Ollama ou Claude Code reais.
 
 Como ler: cada título descreve o comportamento garantido. Os que começam com `[R-...]` são **requisitos críticos** da matriz em [`TESTING.md`](TESTING.md); `tests/unit/traceability.test.ts` falha se um requisito ficar sem teste.
 
@@ -30,6 +30,7 @@ JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento co
 | `integration/intake`             |      11 |
 | `integration/intake-triage`      |       5 |
 | `integration/interpretation`     |       6 |
+| `integration/method-gates`       |      12 |
 | `integration/plan-steps`         |       6 |
 | `integration/planning-notes`     |      12 |
 | `integration/privacy`            |       3 |
@@ -41,7 +42,7 @@ JARVIS_DOCKER_IMAGE="node:22-alpine@sha256:<digest>" npm test    # isolamento co
 | `unit/plugin`                    |       4 |
 | `unit/requirements`              |       5 |
 | `unit/traceability`              |       3 |
-| **Total**                        | **201** |
+| **Total**                        | **213** |
 
 ---
 
@@ -283,6 +284,23 @@ Interpretação do Resolver por LLM: consultiva, sem poder de decisão
 - [R-INTERP-02] malformed output or a provider failure yields UNAVAILABLE, not an error
 - [R-INTERP-03] hostile commit text is sent as data and cannot alter the outcome
 - [R-INTERP-03] spends budget only through the AI runtime and is blocked without one
+
+---
+
+## `integration/method-gates` (12)
+
+- [R-QUALITY-01] code is not touched until a test has really failed; test files always can be
+- [R-QUALITY-01] review needs a test that passes after the last change
+- [R-QUALITY-01] a feature plan is not affected
+- recognizes test files across Python, JS and Java conventions
+- [R-QUALITY-02] nothing is committed or submitted while a check is red or stale
+- [R-QUALITY-02] a different command does not satisfy the check, and the real one does
+- [R-QUALITY-03] once a step declares coverage, every criterion needs a step
+- [R-QUALITY-03] with no coverage declared it only warns
+- [R-QUALITY-04] on a work branch a local commit goes through without asking, attributed to the delegation
+- [R-QUALITY-04] on the default or a protected branch the commit still needs the human
+- [R-QUALITY-04] without the owner's permission, or for a push, the human is still needed
+- [R-QUALITY-05] suggests the right checks from the files a project already has
 
 ---
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Quality gates read from the execution ledger: a bug-fix edits code only after a test has really failed (test files always allowed) and needs a test passing after the last change; mandatory per-project checks (`checks` in config) must have passed since the last change before a commit or a review; plans can declare which acceptance criteria each step covers, and once they do every criterion needs a step.
+- `jarvis checks detect|run`: suggests the mandatory checks from the project files (Node, Python with pytest/ruff/mypy, Java with Maven/Gradle) and runs them through the gateway.
+- Local commit by delegation (`jarvis autonomy set INTERMEDIATE --allow-local-commit`): a commit on a work branch stands on the delegation; the default or a protected branch, push and merge always need the human.
+
 - Delegated autonomy (`src/autonomy`): the human sets, once, how much JARVIS may do without asking (`jarvis autonomy set INTERMEDIATE`). At INTERMEDIATE a plan whose operations are all LOW or MEDIUM risk is approved and started by the delegation (`jarvis autonomy tick`); commit, push, merge and anything HIGH or CRITICAL still wait for the human. Optional automatic confirmation of cited IN_SCOPE client requests. Every automatic decision is attributed to the `autonomy` actor with the fingerprint of the configuration that allowed it. Read-only MCP `jarvis_autonomy_status`.
 - Dependencies: zod 4 (fixes a high-severity advisory), vitest 5, eslint 10, actions v7; `npm audit` clean.
 

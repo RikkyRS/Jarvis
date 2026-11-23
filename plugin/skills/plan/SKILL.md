@@ -28,6 +28,8 @@ Separe o que se sabe do que se supõe:
 - **doubts**: o que ainda não se sabe. Dúvida sem resolução **impede a aprovação**.
 - **impactMatrix** (opcional, quando o usuário pedir ou a mudança encostar em algo existente): uma linha por coisa que a mudança toca (tela, contrato, estado, id que já circula), cada uma com uma decisão: `SAME`, `NEW_CONTRACT`, `VISUAL_ONLY` ou `FORBIDDEN`. Linha sem decisão bloqueia.
 - **kind**: `BUGFIX` exige **diagnosis** (causa, local e evidência) mostrada **antes** de qualquer edição.
+- **covers** (em cada passo): quais critérios de aceite (1, 2, 3...) o passo entrega. Se algum passo declarar, **todo** critério precisa de um passo.
+- Em bug, o primeiro passo é o **teste que reproduz o problema** (ele precisa falhar antes da correção).
 - Cada passo com `paths` e uma `verification` que dê para conferir. Inclua `testStrategy`, `risks` com mitigação e `rollback`.
 
 Escreva o plano **para quem não viu a conversa**: sem "como combinamos", sem contexto implícito.

@@ -142,6 +142,8 @@ export const PlanStepSchema = z
     /** How this step is proven done: a test, a check or reviewable evidence. */
     verification: z.string().min(3).max(300),
     dependsOn: z.array(z.string()).default([]),
+    /** Which acceptance criteria this step delivers (1-based). Once any step says, every criterion must be covered. */
+    covers: z.array(z.number().int().positive()).default([]),
   })
   .strict();
 
@@ -298,6 +300,27 @@ export function checkPlan(
       code: "MATRIX_ROW_WITHOUT_DECISION",
       detail: undecided.map((r) => r.touchpoint).join("; "),
     });
+  const total = item.acceptanceCriteria.length;
+  const declared = plan.steps.some((s) => s.covers.length > 0);
+  if (declared) {
+    const covered = new Set(plan.steps.flatMap((s) => s.covers));
+    const unknown = [...covered].filter((n) => n > total);
+    if (unknown.length)
+      blockers.push({
+        code: "UNKNOWN_CRITERION",
+        detail: "No such acceptance criterion: " + unknown.join(", "),
+      });
+    const missing = item.acceptanceCriteria.map((_, i) => i + 1).filter((n) => !covered.has(n));
+    if (missing.length)
+      blockers.push({
+        code: "CRITERION_WITHOUT_STEP",
+        detail: "No step delivers criterion " + missing.join(", "),
+      });
+  } else if (total > 0) {
+    warnings.push(
+      "No step declares which acceptance criteria it covers (covers); coverage cannot be checked.",
+    );
+  }
   const ids = new Set(plan.steps.map((s) => s.id));
   if (ids.size !== plan.steps.length)
     blockers.push({ code: "DUPLICATE_STEP_IDS", detail: "Step ids must be unique." });

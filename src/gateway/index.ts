@@ -86,6 +86,13 @@ export type GatewayOptions = {
    * is not RUNNING). Supplied by the application layer, which owns workflow state.
    */
   runGuard?: (request: OperationRequest) => string | null;
+  /**
+   * The human's standing delegation (autonomy). When the policy asks for approval, this may stand in
+   * for it, only where the application layer proves every condition. It must never cover CRITICAL.
+   */
+  delegatedApproval?: (
+    request: OperationRequest,
+  ) => { reason: string; evidence: Record<string, unknown> } | null;
 };
 
 /**
@@ -121,7 +128,13 @@ export class ExecutionGateway {
       : request.target;
     const guard = this.options.runGuard?.(request);
     if (guard) return { decision: "BLOCKED", risk: "HIGH", reason: guard, target };
-    return { ...evaluatePolicy(request, this.options.policy), target };
+    const evaluated = evaluatePolicy(request, this.options.policy);
+    if (evaluated.decision === "APPROVAL_REQUIRED") {
+      const delegated = this.options.delegatedApproval?.({ ...request, target });
+      if (delegated)
+        return { decision: "ALLOW", risk: evaluated.risk, reason: delegated.reason, target };
+    }
+    return { ...evaluated, target };
   }
 
   async execute(input: OperationRequestInput): Promise<ExecutionResult> {
@@ -213,7 +226,19 @@ export class ExecutionGateway {
       runner = this.options.containerRunner;
     }
 
-    if (policy.decision === "APPROVAL_REQUIRED") {
+    const delegated =
+      policy.decision === "APPROVAL_REQUIRED" && policy.risk !== "CRITICAL"
+        ? this.options.delegatedApproval?.(bound)
+        : null;
+    if (delegated) {
+      audit.append({
+        projectId: request.projectId,
+        kind: "execution.delegated",
+        actor: { kind: "system", id: "autonomy" },
+        subject: request.operationId,
+        payload: { type: request.type, target, reason: delegated.reason, ...delegated.evidence },
+      });
+    } else if (policy.decision === "APPROVAL_REQUIRED") {
       const consumed = this.options.approvals.consume(bound);
       if (!consumed.ok) {
         return finish(

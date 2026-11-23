@@ -810,6 +810,15 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "covers": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
               }
             },
             "required": [
@@ -819,7 +828,8 @@
               "paths",
               "complexity",
               "verification",
-              "dependsOn"
+              "dependsOn",
+              "covers"
             ],
             "additionalProperties": false
           }

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -27,7 +28,14 @@ import {
   evaluateAutonomy,
   type AutonomyConfig,
 } from "../autonomy/index.js";
+import { autonomyFingerprint } from "../autonomy/index.js";
 import { ContractStore } from "../contract/index.js";
+import {
+  hasFailingTest,
+  hasPassingTestAfterFix,
+  isTestPath,
+  missingChecks,
+} from "../method/gates.js";
 import { hardenDataDir } from "./privacy.js";
 import { KnowledgeStore } from "../knowledge/index.js";
 import { Notes } from "../notes/index.js";
@@ -57,9 +65,25 @@ export const ProjectConfigSchema = z
         "python",
         "python3",
         "pytest",
+        "ruff",
+        "mypy",
+        "mvn",
+        "gradle",
         "go",
         "cargo",
       ]),
+    /** Checks that must have passed since the last change before anything is committed or submitted. */
+    checks: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1).max(40),
+            command: z.string().min(1),
+            args: z.array(z.string()).default([]),
+          })
+          .strict(),
+      )
+      .default([]),
     approvalTtlMs: z
       .number()
       .int()
@@ -165,6 +189,7 @@ export class Jarvis {
       projectId: this.project.id,
       projectRoot: this.root,
       runGuard: (op) => this.runGuard(op),
+      delegatedApproval: (op) => this.delegatedApproval(op),
       db: this.db,
       audit: this.audit,
       approvals: this.approvals,
@@ -184,6 +209,7 @@ export class Jarvis {
       this.budget,
       this.planning,
       (id) => this.refreshNotes(id),
+      (runId, workItemId) => this.qualityGate(runId, workItemId),
     );
     this.knowledge = new KnowledgeStore(this.root);
     this.contract = new ContractStore(this.db, this.audit, this.project.id);
@@ -215,6 +241,7 @@ export class Jarvis {
     workItemId: string;
     workflowRunId: string;
     type: string;
+    target?: string;
   }): string | null {
     const run = this.store.getRun(op.workflowRunId);
     if (!run || run.projectId !== op.projectId || run.workItemId !== op.workItemId)
@@ -222,7 +249,97 @@ export class Jarvis {
     if (op.type === "FILE_READ" || op.type === "GIT_INSPECT") {
       return ["COMPLETED", "FAILED", "CANCELLED"].includes(run.status) ? "RUN_FINISHED" : null;
     }
-    return run.status === "RUNNING" ? null : "RUN_NOT_EXECUTING";
+    if (run.status !== "RUNNING") return "RUN_NOT_EXECUTING";
+    // A bug is fixed against a test that really failed first: the code is only touched once it is reproduced.
+    if (op.type === "FILE_EDIT" && op.target && !isTestPath(op.target)) {
+      const stored = this.planning.currentPlan(op.workItemId);
+      if (
+        stored?.status === "APPROVED" &&
+        stored.plan.kind === "BUGFIX" &&
+        !hasFailingTest(this.db, run.id)
+      )
+        return "BUGFIX_NEEDS_FAILING_TEST";
+    }
+    // Nothing is committed while a mandatory check is red or stale.
+    if (op.type === "GIT_COMMIT" && this.config.checks.length > 0) {
+      const missing = missingChecks(this.db, run.id, this.config.checks);
+      if (missing.length) return "CHECKS_NOT_PASSING:" + missing.join(",");
+    }
+    return null;
+  }
+
+  /** Why a run may not go to review yet (bug without a reproduced-then-green test, or a check not passing). */
+  private qualityGate(runId: string, workItemId: string): string | null {
+    const stored = this.planning.currentPlan(workItemId);
+    if (stored?.status === "APPROVED" && stored.plan.kind === "BUGFIX") {
+      if (!hasFailingTest(this.db, runId))
+        return "A bug-fix needs a test that failed before the fix: none was recorded.";
+      if (!hasPassingTestAfterFix(this.db, runId))
+        return "A bug-fix needs a test that passes after the last change: none was recorded.";
+    }
+    const missing = missingChecks(this.db, runId, this.config.checks);
+    if (missing.length)
+      return "Mandatory checks not passing since the last change: " + missing.join(", ") + ".";
+    return null;
+  }
+
+  /**
+   * The human's delegation standing in for a commit approval. Only a LOCAL commit, only on a work
+   * branch (never the default or a protected one), only when the owner allowed it, the approved plan
+   * has a commit step, and the mandatory checks pass. Push and merge are never covered.
+   */
+  private delegatedApproval(op: {
+    type: string;
+    workItemId: string;
+  }): { reason: string; evidence: Record<string, unknown> } | null {
+    const cfg = this.config.autonomy;
+    if (op.type !== "GIT_COMMIT" || cfg.level !== "INTERMEDIATE" || !cfg.allowLocalCommit)
+      return null;
+    const stored = this.planning.currentPlan(op.workItemId);
+    if (
+      !stored ||
+      stored.status !== "APPROVED" ||
+      !stored.plan.steps.some((s) => s.operations.includes("GIT_COMMIT"))
+    )
+      return null;
+    const branch = this.currentBranch();
+    if (!branch || this.isProtectedBranch(branch)) return null;
+    return {
+      reason: "DELEGATED_LOCAL_COMMIT",
+      evidence: { branch, configFingerprint: autonomyFingerprint(cfg) },
+    };
+  }
+
+  private currentBranch(): string | null {
+    try {
+      const out = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+        cwd: this.root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        windowsHide: true,
+      }).trim();
+      return out && out !== "HEAD" ? out : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private isProtectedBranch(branch: string): boolean {
+    if (/^(main|master|trunk|develop|development|production|prod|stable)$/i.test(branch))
+      return true;
+    if (/^(release|hotfix)[/]/i.test(branch)) return true;
+    try {
+      const head = execFileSync("git", ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], {
+        cwd: this.root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        windowsHide: true,
+      }).trim();
+      if (head.replace(/^origin[/]/, "") === branch) return true;
+    } catch {
+      // No remote default recorded: the name list above is the guard.
+    }
+    return false;
   }
 
   /** Regenerates the learning note for a Work Item. A journal failure is audited, never fatal. */
@@ -247,6 +364,11 @@ export class Jarvis {
     this.notes.writeProjectOverview();
     this.notes.writeIndex();
     return result;
+  }
+
+  /** The checks that must pass before a commit or a review. */
+  get checks(): { name: string; command: string; args: string[] }[] {
+    return this.config.checks;
   }
 
   /** The autonomy the human configured. SUPERVISED unless they changed `.jarvis/config.json`. */

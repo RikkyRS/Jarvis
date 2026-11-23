@@ -18,13 +18,19 @@ export const AutonomyConfigSchema = z
     level: z.enum(["SUPERVISED", "INTERMEDIATE"]).default("SUPERVISED"),
     /** Plans estimated above this many tokens still wait for the human. */
     maxEstimateTokens: z.number().int().positive().optional(),
+    /** Let a plan commit locally on a work branch (never the default branch). Push and merge always wait. */
+    allowLocalCommit: z.boolean().default(false),
     /** Confirm client requests that triage found IN_SCOPE (never OUT_OF_SCOPE, UNCLEAR or duplicates). */
     autoConfirmInScope: z.boolean().default(false),
   })
   .strict();
 export type AutonomyConfig = z.infer<typeof AutonomyConfigSchema>;
 
-export const DEFAULT_AUTONOMY: AutonomyConfig = { level: "SUPERVISED", autoConfirmInScope: false };
+export const DEFAULT_AUTONOMY: AutonomyConfig = {
+  level: "SUPERVISED",
+  allowLocalCommit: false,
+  autoConfirmInScope: false,
+};
 export const AUTONOMY_ACTOR: Principal = { kind: "system", id: "autonomy" };
 export const AUTONOMY_MAX_RISK: RiskLevel = "MEDIUM";
 
@@ -52,9 +58,9 @@ export function evaluateAutonomy(input: {
     reasons.push(`PLAN_NOT_READY:${input.readiness.blockers.map((b) => b.code).join(",")}`);
 
   const ops = new Set(input.plan.steps.flatMap((s) => s.operations));
-  const high = [...ops].filter(
-    (o) => riskOf(o, input.policy) !== "LOW" && riskOf(o, input.policy) !== "MEDIUM",
-  );
+  const high = [...ops]
+    .filter((o) => !(o === "GIT_COMMIT" && input.config.allowLocalCommit))
+    .filter((o) => riskOf(o, input.policy) !== "LOW" && riskOf(o, input.policy) !== "MEDIUM");
   if (high.length) reasons.push(`RISK_ABOVE_MEDIUM:${high.join(",")}`);
   const asked = [...ops].filter((o) => input.policy.requireApproval?.includes(o));
   if (asked.length) reasons.push(`PROJECT_REQUIRES_APPROVAL:${asked.join(",")}`);

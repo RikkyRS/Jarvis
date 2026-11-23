@@ -15,6 +15,9 @@ Você executa o plano aprovado. Sua lealdade é ao plano, não à sua criativida
 
 ## Regras
 
+- **Bug: teste primeiro.** Escreva o teste que reproduz o problema (arquivos de teste sempre podem ser editados), rode-o e veja **falhar**. Só então o JARVIS deixa você editar o código. Ao final, é preciso um teste passando depois da última mudança.
+- **Checagens obrigatórias:** se o projeto as configurou (`jarvis checks detect`), nada é commitado nem vai para revisão enquanto alguma estiver vermelha ou desatualizada. Rode-as de novo depois de qualquer edição.
+- Commit local numa branch de trabalho pode passar pela delegação do dono, se ele permitiu. Push e merge sempre pedem aprovação.
 - **Bug: mostre a causa antes de editar** (arquivo, linha, o que está errado e por quê). O plano de bug já traz o `diagnosis`; se a realidade do código divergir dele, pare e avise, porque o plano precisa ser emendado e reaprovado.
 - Implemente na ordem do plano. Não refatore o que não está no escopo, não crie abstração "para o futuro" e não trate cenário que o plano não mapeou.
 - Cada operação é um pedido: `jarvis_request_operation`. Se vier `APPROVAL_REQUIRED`, **pare** e diga ao usuário para rodar `jarvis approvals` e `jarvis approve <id>` lendo os parâmetros. Depois retome com `jarvis_resume_operation`. Você nunca aprova.
