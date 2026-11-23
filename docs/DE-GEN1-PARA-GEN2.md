@@ -16,23 +16,23 @@ Frase curta para guardar: **"a IA propõe, o código autoriza, o humano aprova o
 
 ## 2. O que trocou
 
-| | Geração 1 (v0.6.0, tag `legacy-0.6.0-gen1`) | Geração 2 (1.0.0-alpha) |
-|---|---|---|
-| Ideia central | Harness local com **Cycles** (planejar, desenvolver, testar, revisar, fechar) e evidência | **Runtime determinístico**: contratos, política, aprovação, gateway e auditoria |
-| Quem manda | O Cursor/host conversa com o modelo dentro de um "envelope" que o JARVIS autoriza | Qualquer cliente de IA (Claude Code, Cursor, VS Code, agentes locais) usa os **mesmos contratos** |
-| Entrada | CLI + intenção em linguagem natural | **CLI** (humano) + **MCP** (IA) + intake por WhatsApp (vira proposta) |
-| Risco | Gates de risco (LOW, MEDIUM, HIGH, CRITICAL) por heurística no Cycle | Política **determinística e validada por schema**; config do projeto só pode **apertar**, nunca afrouxar |
-| Aprovação | Flag `--approve` | Aprovação **ligada a uma operação**, com impressão digital dos parâmetros, expiração e **uso único**; só um principal `human` decide |
-| Auditoria | Logs | Trilha **append-only** (triggers no banco) com **hash encadeado**, verificável (`audit verify`) |
-| Efeitos colaterais | Vários caminhos | **Um único Execution Gateway** |
-| Código de terceiros | Rodava no host quando havia runner | Código não confiável só roda em **container** (sem rede, raiz somente leitura, sem variáveis de ambiente); sem container, o gateway **bloqueia** |
-| Trabalho em paralelo | Um Cycle ativo por vez | Projetos, Missions, Work Items e Workflow Runs, cada Run em **git worktree isolado** |
-| Integração | Não existia | **Integration Resolver**: avalia o branch candidato inteiro antes de promover ao `main` |
-| Custo de IA | Não existia | **Orçamento de tokens por Mission** (preparação e execução separadas), reserva atômica |
-| Linguagem/contratos | TypeScript | TypeScript com **Zod** como fonte da verdade e **JSON Schema** exportado |
-| Estado | `.harness/` | SQLite com migrations, checkpoints e recuperação explícita |
-| Testes | 57 | **139 passando, 1 ignorado** (verificação opt-in com Docker real) |
-| Compatibilidade | n/a | **Nenhuma** com a Gen 1, por decisão (redesenho limpo) |
+|                      | Geração 1 (v0.6.0, tag `legacy-0.6.0-gen1`)                                               | Geração 2 (1.0.0-alpha)                                                                                                                          |
+| -------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ideia central        | Harness local com **Cycles** (planejar, desenvolver, testar, revisar, fechar) e evidência | **Runtime determinístico**: contratos, política, aprovação, gateway e auditoria                                                                  |
+| Quem manda           | O Cursor/host conversa com o modelo dentro de um "envelope" que o JARVIS autoriza         | Qualquer cliente de IA (Claude Code, Cursor, VS Code, agentes locais) usa os **mesmos contratos**                                                |
+| Entrada              | CLI + intenção em linguagem natural                                                       | **CLI** (humano) + **MCP** (IA) + intake por WhatsApp (vira proposta)                                                                            |
+| Risco                | Gates de risco (LOW, MEDIUM, HIGH, CRITICAL) por heurística no Cycle                      | Política **determinística e validada por schema**; config do projeto só pode **apertar**, nunca afrouxar                                         |
+| Aprovação            | Flag `--approve`                                                                          | Aprovação **ligada a uma operação**, com impressão digital dos parâmetros, expiração e **uso único**; só um principal `human` decide             |
+| Auditoria            | Logs                                                                                      | Trilha **append-only** (triggers no banco) com **hash encadeado**, verificável (`audit verify`)                                                  |
+| Efeitos colaterais   | Vários caminhos                                                                           | **Um único Execution Gateway**                                                                                                                   |
+| Código de terceiros  | Rodava no host quando havia runner                                                        | Código não confiável só roda em **container** (sem rede, raiz somente leitura, sem variáveis de ambiente); sem container, o gateway **bloqueia** |
+| Trabalho em paralelo | Um Cycle ativo por vez                                                                    | Projetos, Missions, Work Items e Workflow Runs, cada Run em **git worktree isolado**                                                             |
+| Integração           | Não existia                                                                               | **Integration Resolver**: avalia o branch candidato inteiro antes de promover ao `main`                                                          |
+| Custo de IA          | Não existia                                                                               | **Orçamento de tokens por Mission** (preparação e execução separadas), reserva atômica                                                           |
+| Linguagem/contratos  | TypeScript                                                                                | TypeScript com **Zod** como fonte da verdade e **JSON Schema** exportado                                                                         |
+| Estado               | `.harness/`                                                                               | SQLite com migrations, checkpoints e recuperação explícita                                                                                       |
+| Testes               | 57                                                                                        | **147 passando, 3 ignorados (opt-in)** (verificação opt-in com Docker real)                                                                      |
+| Compatibilidade      | n/a                                                                                       | **Nenhuma** com a Gen 1, por decisão (redesenho limpo)                                                                                           |
 
 Tamanho: a Gen 1 tinha cerca de 61 arquivos em `src/`; a Gen 2 tem cerca de 7,5 mil linhas de TypeScript em `src/`, divididas em módulos por responsabilidade.
 
@@ -79,38 +79,38 @@ Por que a aprovação é presa à operação: se o alvo, o diff, o branch, o rem
 
 ### Módulos principais (`src/`)
 
-| Pasta | Responsabilidade |
-|---|---|
-| `domain/` | Contratos (Zod), IDs e máquina de estados do workflow |
-| `policy/` | Política de risco (a config só aperta) |
-| `approval/` | Aprovações de uso único, só humano decide |
-| `gateway/` | Único caminho para efeitos colaterais; caminhos, runner, container |
-| `persistence/` | SQLite, migrations, auditoria append-only com hash |
-| `budget/` | Orçamento de tokens por Mission |
-| `git/` | Handlers de git e worktrees |
-| `integration/` | Integration Resolver |
-| `knowledge/` | Conhecimento do projeto, com rejeição de segredos |
-| `ai/`, `runtime/` | Provedores (Ollama, Claude Code), roteador, scheduler, proteção contra loop |
-| `mcp/`, `cli/` | Adaptadores de entrada |
-| `intake/` | Mensagens (WhatsApp) viram **proposta** que um humano confirma |
-| `planning/`, `requirements/`, `report/` | Plano, análise de requisitos e relatório de mudança |
+| Pasta                                   | Responsabilidade                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `domain/`                               | Contratos (Zod), IDs e máquina de estados do workflow                       |
+| `policy/`                               | Política de risco (a config só aperta)                                      |
+| `approval/`                             | Aprovações de uso único, só humano decide                                   |
+| `gateway/`                              | Único caminho para efeitos colaterais; caminhos, runner, container          |
+| `persistence/`                          | SQLite, migrations, auditoria append-only com hash                          |
+| `budget/`                               | Orçamento de tokens por Mission                                             |
+| `git/`                                  | Handlers de git e worktrees                                                 |
+| `integration/`                          | Integration Resolver                                                        |
+| `knowledge/`                            | Conhecimento do projeto, com rejeição de segredos                           |
+| `ai/`, `runtime/`                       | Provedores (Ollama, Claude Code), roteador, scheduler, proteção contra loop |
+| `mcp/`, `cli/`                          | Adaptadores de entrada                                                      |
+| `intake/`                               | Mensagens (WhatsApp) viram **proposta** que um humano confirma              |
+| `planning/`, `requirements/`, `report/` | Plano, análise de requisitos e relatório de mudança                         |
 
 ---
 
 ## 5. Decisões confirmadas e o porquê de cada uma
 
-| Decisão | Razão |
-|---|---|
-| Zod por dentro, JSON Schema por fora | Uma só fonte da verdade para validar e para quem integra de fora |
-| SQLite com interfaces de persistência | Simples e local agora, portável a PostgreSQL depois |
-| Worktree por Workflow Run, branch de referência por Work Item | Execuções paralelas sem pisar no diretório umas das outras; fechar um worktree não fecha o trabalho |
-| Isolamento híbrido (restrições locais + container) | Container reduz risco, mas não prova segurança; por isso a decisão é por nível de confiança |
-| Autorização dupla para grants de admin | Ninguém edita a própria permissão |
-| Associação híbrida de PRs e contribuições | Não adivinha com sinais fracos (há teste para isso) |
-| Auditoria: eventos críticos permanentes, dados operacionais com retenção | Auditar sem crescer para sempre |
-| Revisão técnica em camadas, proporcional ao risco | Gasta o esforço onde o risco está |
-| Orçamento de tokens, sem custo financeiro | Decisão registrada: só contagem de tokens |
-| LangChain/LangGraph **opcionais** | O núcleo determinístico não depende de framework de IA |
+| Decisão                                                                  | Razão                                                                                               |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Zod por dentro, JSON Schema por fora                                     | Uma só fonte da verdade para validar e para quem integra de fora                                    |
+| SQLite com interfaces de persistência                                    | Simples e local agora, portável a PostgreSQL depois                                                 |
+| Worktree por Workflow Run, branch de referência por Work Item            | Execuções paralelas sem pisar no diretório umas das outras; fechar um worktree não fecha o trabalho |
+| Isolamento híbrido (restrições locais + container)                       | Container reduz risco, mas não prova segurança; por isso a decisão é por nível de confiança         |
+| Autorização dupla para grants de admin                                   | Ninguém edita a própria permissão                                                                   |
+| Associação híbrida de PRs e contribuições                                | Não adivinha com sinais fracos (há teste para isso)                                                 |
+| Auditoria: eventos críticos permanentes, dados operacionais com retenção | Auditar sem crescer para sempre                                                                     |
+| Revisão técnica em camadas, proporcional ao risco                        | Gasta o esforço onde o risco está                                                                   |
+| Orçamento de tokens, sem custo financeiro                                | Decisão registrada: só contagem de tokens                                                           |
+| LangChain/LangGraph **opcionais**                                        | O núcleo determinístico não depende de framework de IA                                              |
 
 ---
 
@@ -118,41 +118,44 @@ Por que a aprovação é presa à operação: se o alvo, o diff, o branch, o rem
 
 O `THREAT-MODEL.md` lista 17 ameaças, cada uma com controle e teste que a comprova (os códigos `R-...`). Para entrevista, estas seis contam bem a história:
 
-| Ameaça | Controle |
-|---|---|
-| Agente aprova a própria operação | Só principal `human` decide; o MCP não tem ferramenta de aprovar |
-| Aprovação reaproveitada | Uso único e fingerprint da operação; o commit refaz o hash do diff |
-| Prompt injection em arquivo do repo ou mensagem | Conteúdo é dado; a saída do classificador só gera **proposta**, que um humano confirma |
-| Escape de caminho (`../`, symlink) | Canonicalização contra a raiz real do projeto |
-| Adulteração do log de auditoria | Triggers append-only + hash encadeado, verificado sob demanda |
-| Agente reescreve `.jarvis/config.json` para se dar confiança | O gateway nega edição e stage em `.jarvis/` |
+| Ameaça                                                       | Controle                                                                               |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Agente aprova a própria operação                             | Só principal `human` decide; o MCP não tem ferramenta de aprovar                       |
+| Aprovação reaproveitada                                      | Uso único e fingerprint da operação; o commit refaz o hash do diff                     |
+| Prompt injection em arquivo do repo ou mensagem              | Conteúdo é dado; a saída do classificador só gera **proposta**, que um humano confirma |
+| Escape de caminho (`../`, symlink)                           | Canonicalização contra a raiz real do projeto                                          |
+| Adulteração do log de auditoria                              | Triggers append-only + hash encadeado, verificado sob demanda                          |
+| Agente reescreve `.jarvis/config.json` para se dar confiança | O gateway nega edição e stage em `.jarvis/`                                            |
 
 **Limites honestos (o documento também diz):** container reduz risco, não garante; o usuário do sistema operacional pode editar o SQLite (o hash **detecta**, não impede); a aprovação mostra parâmetros, não revisa semanticamente o que um script faz; e a qualidade do modelo está fora da garantia. Falar dos limites sem ser perguntado passa maturidade.
 
 ---
 
-## 7. Os testes (139 passando, 1 ignorado)
+## 7. Os testes (147 passando, 3 ignorados opt-in)
 
-| Área | Arquivos | Testes |
-|---|---|---:|
-| Gateway (política, caminhos, aprovação, isolamento) | `integration/gateway` | 18 |
-| Runtime de IA (roteador, scheduler, loops) | `integration/ai-runtime` | 15 |
-| Domínio e orçamento de tokens | `integration/domain-budget` | 13 |
-| Notas e planejamento | `integration/planning-notes` | 12 |
-| Integration Resolver e conhecimento | `integration/resolver-knowledge` | 12 |
-| Intake (WhatsApp, HMAC) | `integration/intake` | 11 |
-| Git e worktrees | `integration/git` | 10 |
-| Fluxo ponta a ponta | `e2e/full-flow` | 10 |
-| Adaptadores (CLI e MCP) | `integration/adapters` | 8 |
-| Domínio (unitário) | `unit/domain` | 7 |
-| Passos do plano | `integration/plan-steps` | 6 |
-| Recuperação após falha | `recovery` | 6 |
-| Requisitos | `unit/requirements` | 5 |
-| Rastreabilidade | `unit/traceability` | 3 |
-| Caminhos protegidos | `e2e/protected-paths` | 2 |
-| Ciclo de vida da CLI | `e2e/cli-lifecycle` | 1 |
-| Isolamento com Docker real | `integration/docker-live` | 1 (opt-in, ignorado no CI) |
-| **Total** | | **140** (139 + 1 ignorado) |
+| Área                                                | Arquivos                         |                               Testes |
+| --------------------------------------------------- | -------------------------------- | -----------------------------------: |
+| Gateway (política, caminhos, aprovação, isolamento) | `integration/gateway`            |                                   18 |
+| Runtime de IA (roteador, scheduler, loops)          | `integration/ai-runtime`         |                                   15 |
+| Domínio e orçamento de tokens                       | `integration/domain-budget`      |                                   13 |
+| Notas e planejamento                                | `integration/planning-notes`     |                                   12 |
+| Integration Resolver e conhecimento                 | `integration/resolver-knowledge` |                                   12 |
+| Intake (WhatsApp, HMAC)                             | `integration/intake`             |                                   11 |
+| Git e worktrees                                     | `integration/git`                |                                   10 |
+| Fluxo ponta a ponta                                 | `e2e/full-flow`                  |                                   10 |
+| Adaptadores (CLI e MCP)                             | `integration/adapters`           |                                    8 |
+| Domínio (unitário)                                  | `unit/domain`                    |                                    7 |
+| Passos do plano                                     | `integration/plan-steps`         |                                    6 |
+| Recuperação após falha                              | `recovery`                       |                                    6 |
+| Requisitos                                          | `unit/requirements`              |                                    5 |
+| Rastreabilidade                                     | `unit/traceability`              |                                    3 |
+| Caminhos protegidos                                 | `e2e/protected-paths`            |                                    2 |
+| Ciclo de vida da CLI                                | `e2e/cli-lifecycle`              |                                    1 |
+| Isolamento com Docker real                          | `integration/docker-live`        |           1 (opt-in, ignorado no CI) |
+| Interpretação do Resolver por LLM                   | `integration/interpretation`     |                                    6 |
+| Adaptador Ollama sobre HTTP real                    | `integration/providers-http`     |                                    2 |
+| Ollama e Claude Code reais (opt-in)                 | `integration/providers-live`     |                  2 (ignorados no CI) |
+| **Total**                                           |                                  | **150** (147 passando + 3 ignorados) |
 
 O que isso mostra: os testes cobrem as **regras de segurança** (R-APPROVAL, R-PATH, R-AUDIT, R-ISO, R-BUDGET, R-INTEGRATION...), não só o caminho feliz. Eles rodam com `npm test`, e `npm run ci` faz typecheck, lint, testes e build.
 
@@ -205,29 +208,31 @@ Demonstração curta que funciona bem: pedir ao agente uma operação HIGH, most
 
 ## 10. O que dizer e o que evitar
 
-- Diga: **"alpha"**, "139 testes", "runtime determinístico", "a IA propõe, o código autoriza".
+- Diga: **"alpha"**, "147 testes", "runtime determinístico", "a IA propõe, o código autoriza".
 - Não diga: "usado em produção", número de usuários ou "à prova de falhas". Nada disso é verdade, e o próprio threat model lista os limites.
 - Mostre o raciocínio (invariantes, ameaças, limites) mais do que a lista de funcionalidades.
 
 ---
 
-## 11. O que ainda falta (é alpha, não está "completo")
+## 11. O que foi fechado depois e o que ainda falta
 
-Fonte: seções "Still open" e "Implementation status" de `docs/architecture/GENERATION-2.md`.
+**Fechado na branch `chore/pos-gen2-melhorias`**
 
-**Não verificado na prática**
-- O perfil Docker de isolamento tem teste unitário, mas **nunca rodou contra um daemon real no CI** (existe um teste opt-in, ignorado por padrão).
-- Os adaptadores de Ollama e Claude Code foram testados **só com fakes**. Houve um piloto manual em 23/11 com Claude Code, que funcionou, mas não é teste automatizado.
+- Isolamento Docker agora roda contra um **daemon real no CI** (job `docker-isolation`, que falha se o teste for ignorado).
+- Adaptador Ollama testado sobre **HTTP real**; testes opt-in com **Ollama e Claude Code de verdade** (ambos passaram). No caminho apareceu um limite real: no Windows o adaptador do Claude Code precisa do `claude.exe` nativo, porque um atalho `.cmd` não inicia sem shell. A mensagem de erro agora diz isso.
+- **Interpretação do Resolver por LLM** (`src/integration/interpret.ts`): consultiva. Descarta caminhos que não estão no relatório, nunca passa de MEDIUM, vira UNAVAILABLE se o modelo errar, e **não participa** da decisão de promover.
+- README, guia de testes gerado dos testes reais e demo da CLI.
 
-**Ainda por construir**
-- Interpretação do Integration Resolver assistida por LLM (hoje a avaliação é só determinística).
+**Ainda em aberto (decisões de design)**
+
 - Perfis de container além do padrão travado; proveniência de imagem além do digest fixado.
-- Formato de arquivamento da auditoria além do hash no próprio lugar.
-- Delegação de permissões além de "criada pelo dono, com expiração e revogável"; semântica de revogação quando o acesso à Mission muda.
+- Delegação de permissões e semântica de revogação quando o acesso à Mission muda.
 - Regras de concorrência e prioridade além de "prioridade, depois ordem de chegada".
 - Convenções de metadados de PR além de IDs explícitos `wi_…`.
-- Decidir se o JARVIS pode resolver sozinho tarefas simples de baixo risco (hoje só **propõe**).
+- Se o JARVIS pode resolver sozinho tarefas simples de baixo risco (hoje só **propõe**).
+- Formato de arquivamento da auditoria além do hash no próprio lugar.
 
 **Limites de projeto (decididos, não bugs)**
-- Uso local, um processo e um operador humano. Implantação em rede compartilhada está fora do escopo até existirem identidade e gestão de segredos.
+
+- Uso local, um processo e um operador humano. Rede compartilhada fica fora do escopo até existirem identidade e gestão de segredos.
 - Sem contabilidade financeira, só contagem de tokens.

@@ -36,3 +36,29 @@ jobs:
       - run: npm test
 
       - run: node dist/cli/index.js doctor
+
+  # Exercises the container isolation profile against a real Docker daemon (no network,
+  # read-only root, no host environment). Fails if the live test is skipped instead of run.
+  docker-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pin the image by digest
+        run: |
+          docker pull node:22-alpine
+          echo "JARVIS_DOCKER_IMAGE=$(docker inspect --format='{{index .RepoDigests 0}}' node:22-alpine)" >> "$GITHUB_ENV"
+
+      - name: Live isolation test
+        shell: bash
+        run: |
+          npx vitest run tests/integration/docker-live.test.ts 2>&1 | tee live.log
+          grep -Eq "1 passed" live.log
+          ! grep -Eq "skipped" live.log

@@ -115,7 +115,9 @@ export class ClaudeCodeProvider implements ProviderAdapter {
       input: prompt,
     });
     if (r.exitCode !== 0 || r.timedOut)
-      throw new Error(`Claude Code exited with ${r.exitCode ?? "timeout"}.`);
+      throw new Error(
+        `Claude Code exited with ${r.exitCode ?? (r.timedOut ? "timeout" : "no exit code (could not start; on Windows pass the native claude.exe as binary, a .cmd shim cannot be launched without a shell)")}.`,
+      );
     const data = JSON.parse(r.stdout) as {
       result?: string;
       structured_output?: unknown;
