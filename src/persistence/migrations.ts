@@ -310,6 +310,14 @@ CREATE INDEX contract_chunks_project ON contract_chunks(project_id, doc_id);
 `,
 });
 
+MIGRATIONS.push({
+  version: 8,
+  sql: `
+ALTER TABLE task_proposals ADD COLUMN triage TEXT;
+ALTER TABLE task_proposals ADD COLUMN reply_draft TEXT;
+`,
+});
+
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export function runMigrations(db: DatabaseSync): void {

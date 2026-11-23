@@ -38,6 +38,8 @@ Workflow safeguards: a **planning gate** (questions, complete plan, human-approv
 
 Project contract: each project keeps its own contract, agreed scope and delivery history (`jarvis contract add CONTRACT contrato.pdf`). Only a human adds documents; a new version replaces the one consulted and the old one stays audited. A request can be triaged against them as repeated, in scope or out of scope, always citing the clause or past delivery, and anything without evidence goes back to the human.
 
+Client messages: forward or receive them (`jarvis inbox add`, WhatsApp webhook), run `jarvis inbox process`, and read `jarvis digest`. Each proposal carries a scope verdict that cites the contract or the delivery history. JARVIS drafts replies but cannot send anything. Everything stays local by default; see [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md) and run `jarvis privacy`.
+
 ## Verified against the real thing
 
 - The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.
