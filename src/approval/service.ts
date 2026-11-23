@@ -11,7 +11,7 @@ import {
 import { newId } from "../domain/ids.js";
 import type { AuditLog } from "../persistence/audit.js";
 import { inTransaction } from "../persistence/db.js";
-import { fingerprint } from "../shared/canonical.js";
+import { canonicalJson, fingerprint } from "../shared/canonical.js";
 import { systemClock, type Clock } from "../shared/clock.js";
 
 /** Everything an approval is bound to. Changing any field invalidates it. */
@@ -103,8 +103,8 @@ export class ApprovalService {
       this.db
         .prepare(
           `INSERT INTO approvals (id, operation_id, project_id, work_item_id, workflow_run_id,
-             requested_by_kind, requested_by_id, type, target, fingerprint, status, created_at, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
+             requested_by_kind, requested_by_id, type, target, fingerprint, status, created_at, expires_at, request_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?)`,
         )
         .run(
           id,
@@ -119,6 +119,7 @@ export class ApprovalService {
           operationFingerprint(request),
           createdAt,
           expiresAt,
+          canonicalJson(request),
         );
       this.audit.append({
         projectId: request.projectId,
@@ -134,6 +135,24 @@ export class ApprovalService {
   get(id: string): Approval | undefined {
     const row = this.db.prepare("SELECT * FROM approvals WHERE id = ?").get(id) as Row | undefined;
     return row ? toApproval(row) : undefined;
+  }
+
+  /** The exact request an approval is bound to, so a human sees what they are approving. */
+  requestOf(id: string): OperationRequest | undefined {
+    const row = this.db.prepare("SELECT request_json FROM approvals WHERE id = ?").get(id) as
+      { request_json: string | null } | undefined;
+    return row?.request_json
+      ? OperationRequestSchema.parse(JSON.parse(row.request_json))
+      : undefined;
+  }
+
+  listPending(projectId: string): Approval[] {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM approvals WHERE project_id = ? AND status IN ('PENDING','APPROVED') ORDER BY created_at",
+      )
+      .all(projectId) as Row[];
+    return rows.map(toApproval);
   }
 
   findByOperation(operationId: string): Approval | undefined {

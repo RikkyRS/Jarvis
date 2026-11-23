@@ -93,6 +93,20 @@ export class ExecutionGateway {
     return this.options.approvals.request({ ...request, target }, ttlMs);
   }
 
+  /** Side-effect-free policy view of a request, for adapters deciding whether to ask a human. */
+  preflight(input: OperationRequestInput): {
+    decision: PolicyDecision;
+    risk: RiskLevel;
+    reason: string;
+    target: string;
+  } {
+    const request = OperationRequestSchema.parse(input);
+    const target = PATH_TARGET_TYPES.has(request.type)
+      ? canonicalizeTarget(this.options.projectRoot, request.target).relative
+      : request.target;
+    return { ...evaluatePolicy(request, this.options.policy), target };
+  }
+
   async execute(input: OperationRequestInput): Promise<ExecutionResult> {
     const request = OperationRequestSchema.parse(input);
     const { audit, db } = this.options;
@@ -106,21 +120,24 @@ export class ExecutionGateway {
       evidence: Record<string, unknown> = {},
       target = request.target,
     ): ExecutionResult => {
-      db.prepare(
-        `INSERT OR IGNORE INTO executions (operation_id, project_id, workflow_run_id, type, target, decision,
+      // Only operations that actually ran enter the ledger; refusals are audited but remain retryable
+      // (e.g. after a human approves), while an executed operation id can never run twice.
+      if (outcome === "SUCCEEDED" || outcome === "FAILED")
+        db.prepare(
+          `INSERT OR IGNORE INTO executions (operation_id, project_id, workflow_run_id, type, target, decision,
            outcome, evidence, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        request.operationId,
-        request.projectId,
-        request.workflowRunId,
-        request.type,
-        target,
-        decision ?? "NONE",
-        outcome,
-        JSON.stringify({ reason, ...evidence }),
-        startedAt,
-        this.clock().toISOString(),
-      );
+        ).run(
+          request.operationId,
+          request.projectId,
+          request.workflowRunId,
+          request.type,
+          target,
+          decision ?? "NONE",
+          outcome,
+          JSON.stringify({ reason, ...evidence }),
+          startedAt,
+          this.clock().toISOString(),
+        );
       audit.append({
         projectId: request.projectId,
         kind: `execution.${outcome.toLowerCase()}`,

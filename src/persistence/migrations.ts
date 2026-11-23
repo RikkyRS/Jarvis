@@ -187,6 +187,50 @@ BEGIN SELECT RAISE(ABORT, 'token_usage is append-only'); END;
 `,
 });
 
+MIGRATIONS.push({
+  version: 3,
+  sql: `
+CREATE TABLE inbox_messages (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  channel TEXT NOT NULL,
+  external_id TEXT NOT NULL,
+  sender TEXT NOT NULL,
+  conversation_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  received_at TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('NEW','CLASSIFIED','PROPOSED','IGNORED_UNKNOWN_SENDER','CLASSIFY_FAILED')),
+  classification TEXT,
+  UNIQUE (channel, external_id)
+);
+CREATE INDEX idx_inbox_status ON inbox_messages(project_id, status);
+
+CREATE TABLE task_proposals (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id),
+  title TEXT NOT NULL,
+  objective TEXT NOT NULL,
+  requirements TEXT NOT NULL,
+  acceptance_criteria TEXT NOT NULL,
+  source_message_ids TEXT NOT NULL,
+  duplicate_of TEXT,
+  status TEXT NOT NULL CHECK (status IN ('PENDING','CONFIRMED','MERGED','REJECTED')),
+  created_work_item_id TEXT,
+  created_at TEXT NOT NULL,
+  decided_by TEXT,
+  decided_at TEXT
+);
+CREATE INDEX idx_proposals_status ON task_proposals(project_id, status);
+`,
+});
+
+MIGRATIONS.push({
+  version: 4,
+  sql: `
+ALTER TABLE approvals ADD COLUMN request_json TEXT;
+`,
+});
+
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export function runMigrations(db: DatabaseSync): void {

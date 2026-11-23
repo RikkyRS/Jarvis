@@ -9,6 +9,8 @@ export type ProcessSpec = {
   maxOutputBytes: number;
   /** Extra variables, restricted to a safe name pattern. Never inherited secrets. */
   env?: Record<string, string>;
+  /** Written to the process stdin (keeps long prompts off the command line). */
+  input?: string;
 };
 
 export type ProcessResult = {
@@ -67,7 +69,7 @@ export class HostRunner implements ProcessRunner {
     }
     return new Promise((resolve) => {
       let truncated = false;
-      execFile(
+      const child = execFile(
         spec.command,
         [...spec.args],
         {
@@ -92,6 +94,10 @@ export class HostRunner implements ProcessRunner {
           });
         },
       );
+      if (spec.input !== undefined) {
+        child.stdin?.on("error", () => undefined);
+        child.stdin?.end(spec.input);
+      }
     });
   }
 }
