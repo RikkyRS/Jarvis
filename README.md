@@ -36,6 +36,8 @@ Durable Projects/Work Items/Workflow Runs, Mission token budgets (separate prepa
 
 Workflow safeguards: a **planning gate** (questions, complete plan, human-approved estimate before any execution), a **run guard** (changes only on a RUNNING run of the same Work Item), **plan step tracking** (a step is done only with matching successful operations; edits outside the plan need an amended plan), protected `.jarvis/` control files, a **learning journal** per Work Item, and **retention** of operational data (audit and ledgers are never touched).
 
+Project contract: each project keeps its own contract, agreed scope and delivery history (`jarvis contract add CONTRACT contrato.pdf`). Only a human adds documents; a new version replaces the one consulted and the old one stays audited. A request can be triaged against them as repeated, in scope or out of scope, always citing the clause or past delivery, and anything without evidence goes back to the human.
+
 ## Verified against the real thing
 
 - The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.

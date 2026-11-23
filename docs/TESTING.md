@@ -89,4 +89,9 @@ The six requirements the project is judged against come first.
 | R-INTERP-03      | Hostile commit text is data, and interpretation spends budget only through the AI runtime                                     | adversarial |
 | R-ADAPTER-01     | The Ollama adapter works over a real HTTP connection and fails explicitly on errors                                           | integration |
 
+| R-CONTRACT-02 | Only a human adds contract documents; a new version replaces the one consulted and the old one stays audited | adversarial |
+| R-CONTRACT-03 | A project never sees another project contract, and documents with secrets are refused | adversarial |
+| R-CONTRACT-04 | A triage verdict needs valid evidence from the stored documents; otherwise it is UNCLEAR and a human decides | adversarial |
+| R-CONTRACT-05 | A project without a contract works: no scope check, no model call, the request follows the normal flow | integration |
+
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.

@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { Jarvis } from "../app/jarvis.js";
 import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
 import { exportSchemas } from "../contracts/export.js";
+import { CONTRACT_KINDS, readContractFile, type ContractKind } from "../contract/index.js";
 import { HostRunner } from "../gateway/index.js";
 import { applyRetention } from "../persistence/retention.js";
 import { buildChangeReport, renderChangeReport } from "../report/index.js";
@@ -68,6 +69,9 @@ export const HELP = `jarvis — deterministic engineering runtime
   proposals                       task proposals waiting for your decision
   proposal confirm <id> [--new]   create the Work Item (or merge into the duplicate unless --new)
   proposal reject <id>
+  contract add <CONTRACT|SCOPE|HISTORY> <file.md|.txt|.pdf> [--title <t>]   this project's contract (a new version replaces the one consulted)
+  contract list [--all]           documents in force (--all includes superseded versions)
+  contract find <query>           the few clauses that match, with document, version and clause
   scan                            analyze the project stack into source-backed knowledge
   know <query>                    retrieve relevant, revalidated claims
   schemas                         print the exported JSON Schema contracts
@@ -524,6 +528,51 @@ export async function run(
           ),
         );
         return 0;
+      }
+
+      case "contract": {
+        if (sub === "add") {
+          const [kindArg, file, ...flags] = rest;
+          const kind = String(kindArg ?? "").toUpperCase() as ContractKind;
+          const { values } = parseArgs({ args: flags, options: { title: { type: "string" } } });
+          if (!CONTRACT_KINDS.includes(kind) || !file)
+            return usage(
+              io,
+              "contract add <CONTRACT|SCOPE|HISTORY> <file.md|.txt|.pdf> [--title <t>]",
+            );
+          const { text, sourceName } = readContractFile(file);
+          const { doc, created } = jarvis.contract.add({
+            kind,
+            text,
+            sourceName,
+            ...(values.title ? { title: values.title } : {}),
+            actor: jarvis.human,
+          });
+          io.out(
+            created
+              ? `${doc.kind} v${doc.version} added (${doc.chunks} clauses). It is now the version consulted.`
+              : `${doc.kind} v${doc.version} is already the current text; nothing changed.`,
+          );
+          return 0;
+        }
+        if (sub === "list") {
+          const all = rest.includes("--all");
+          for (const d of jarvis.contract.list({ includeSuperseded: all }))
+            io.out(
+              `${d.kind.padEnd(8)} v${d.version}  ${d.status.padEnd(10)} ${d.title}  (${d.chunks} clauses, ${d.addedAt.slice(0, 10)})`,
+            );
+          return 0;
+        }
+        if (sub === "find") {
+          const query = rest.join(" ");
+          if (!query) return usage(io, "contract find <query>");
+          for (const h of jarvis.contract.retrieve(query))
+            io.out(`[${h.kind} v${h.version}] ${h.ref}
+${h.text.slice(0, 400)}
+`);
+          return 0;
+        }
+        return usage(io, "contract add|list|find ...");
       }
 
       case "scan": {

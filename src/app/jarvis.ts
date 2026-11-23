@@ -21,6 +21,7 @@ import {
 } from "../gateway/index.js";
 import { defaultHandlers } from "../git/handlers.js";
 import { Intake, type IntakeConfig } from "../intake/index.js";
+import { ContractStore } from "../contract/index.js";
 import { KnowledgeStore } from "../knowledge/index.js";
 import { Notes } from "../notes/index.js";
 import { Planning } from "../planning/index.js";
@@ -102,6 +103,8 @@ export class Jarvis {
   readonly scheduler: Scheduler;
   readonly runtime: WorkflowRuntime;
   readonly knowledge: KnowledgeStore;
+  /** This project's contract, scope and delivery history. Humans add, agents only read. */
+  readonly contract: ContractStore;
   readonly planning: Planning;
   readonly notes: Notes;
   readonly ai: AiRuntime | undefined;
@@ -168,6 +171,7 @@ export class Jarvis {
       (id) => this.refreshNotes(id),
     );
     this.knowledge = new KnowledgeStore(this.root);
+    this.contract = new ContractStore(this.db, this.audit, this.project.id);
     const notesDir =
       options.notesDir ??
       this.config.notesDir ??

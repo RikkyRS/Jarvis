@@ -281,6 +281,35 @@ CREATE TABLE plan_steps (
 `,
 });
 
+MIGRATIONS.push({
+  version: 7,
+  sql: `
+CREATE TABLE contract_docs (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('CONTRACT','SCOPE','HISTORY')),
+  version INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  sha256 TEXT NOT NULL CHECK (length(sha256) = 64),
+  status TEXT NOT NULL CHECK (status IN ('CURRENT','SUPERSEDED')),
+  added_by TEXT NOT NULL,
+  added_at TEXT NOT NULL,
+  UNIQUE (project_id, kind, version)
+);
+CREATE UNIQUE INDEX contract_one_current ON contract_docs(project_id, kind) WHERE status = 'CURRENT';
+CREATE TABLE contract_chunks (
+  id TEXT PRIMARY KEY,
+  doc_id TEXT NOT NULL REFERENCES contract_docs(id),
+  project_id TEXT NOT NULL,
+  ordinal INTEGER NOT NULL,
+  ref TEXT NOT NULL,
+  text TEXT NOT NULL
+);
+CREATE INDEX contract_chunks_project ON contract_chunks(project_id, doc_id);
+`,
+});
+
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export function runMigrations(db: DatabaseSync): void {

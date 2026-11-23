@@ -236,3 +236,16 @@ Demonstração curta que funciona bem: pedir ao agente uma operação HIGH, most
 
 - Uso local, um processo e um operador humano. Rede compartilhada fica fora do escopo até existirem identidade e gestão de segredos.
 - Sem contabilidade financeira, só contagem de tokens.
+
+---
+
+## 12. Contrato por projeto e triagem de pedidos
+
+A ideia central do JARVIS: ele faz o trabalho, tira as dúvidas com você e continua útil quando você não consegue acompanhar tudo. O contrato é **do projeto**, não do JARVIS.
+
+- **Onde vive:** na base do projeto (isolada por projeto). Só um humano adiciona (`jarvis contract add CONTRACT|SCOPE|HISTORY arquivo`, aceita `.md`, `.txt` e `.pdf`). O agente só lê, pelo MCP (`jarvis_project_contract`).
+- **Versões:** uma versão nova substitui a consultada; a antiga fica guardada e auditada, mas não é consultada. Assim ele não relê tudo a cada pedido.
+- **Consulta seletiva:** o contrato é dividido em cláusulas e a busca devolve só as poucas que importam, com documento, versão e cláusula.
+- **Triagem:** `REPEATED`, `IN_SCOPE`, `OUT_OF_SCOPE` ou `UNCLEAR`, sempre citando a evidência. Sem evidência válida vira `UNCLEAR` e um humano decide. Sem nada relevante no contrato, o modelo nem é chamado (sem gastar tokens).
+- **Quem decide:** a triagem é consultiva. O que está dentro do contrato vira proposta e plano; **você aprova o plano e só então ele executa**. O que está fora vira aviso de escopo.
+- **Projeto sem contrato:** funciona normalmente. A triagem vira `UNCLEAR` com o motivo `NoContractOnFile`, o modelo nem é chamado e o pedido segue direto para proposta, plano e aprovação. Só com histórico (sem contrato), repetições ainda são detectadas, mas o escopo nunca é adivinhado.

@@ -14,3 +14,13 @@ export {
   type OperationHandler,
   type ProcessRunner,
 } from "./gateway/index.js";
+export {
+  ContractStore,
+  CONTRACT_KINDS,
+  chunkText,
+  readContractFile,
+  type ContractDoc,
+  type ContractHit,
+  type ContractKind,
+} from "./contract/index.js";
+export { triageRequest, type Triage, type Verdict } from "./contract/triage.js";
