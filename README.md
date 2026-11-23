@@ -32,10 +32,18 @@ Requires Node >= 22.5 (`node:sqlite`).
 
 ## Also implemented
 
-Durable Projects/Work Items/Workflow Runs, Mission token budgets (separate preparation and execution phases, dual-authorized grants), AI runtime (router, scheduler, context builder, loop guards, Ollama and Claude Code adapters), Git/worktree handlers, Integration Resolver, project knowledge store, change reports, channel intake (WhatsApp), MCP and CLI adapters, JSON Schema export.
+Durable Projects/Work Items/Workflow Runs, Mission token budgets (separate preparation and execution phases, dual-authorized grants, complexity-based estimates calibrated by history), AI runtime (router, scheduler, context builder, loop guards, Ollama and Claude Code adapters), Git/worktree handlers, Integration Resolver with an **advisory LLM interpretation** (it can add concerns for a human to read, never change the verdict), project knowledge store, change reports, channel intake (WhatsApp), MCP and CLI adapters, JSON Schema export.
+
+Workflow safeguards: a **planning gate** (questions, complete plan, human-approved estimate before any execution), a **run guard** (changes only on a RUNNING run of the same Work Item), **plan step tracking** (a step is done only with matching successful operations; edits outside the plan need an amended plan), protected `.jarvis/` control files, a **learning journal** per Work Item, and **retention** of operational data (audit and ledgers are never touched).
+
+## Verified against the real thing
+
+- The container isolation profile runs against a **live Docker daemon in CI** (no network, read-only root, no host environment); the job fails if the check is skipped.
+- The Ollama adapter is tested over a real HTTP connection, and both Ollama and Claude Code have opt-in live tests. See [`docs/TESTES-EXPLICADOS.md`](docs/TESTES-EXPLICADOS.md).
+- A reproducible CLI tour: `bash scripts/demo.sh` (transcript in [`docs/DEMO.md`](docs/DEMO.md)).
 
 ## Next
 
-Live-daemon container tests, LLM-assisted Resolver interpretation, automatic budget estimation, retention policy for operational data.
+Container profiles beyond the locked-down default, image provenance beyond digest pinning, delegation and revocation semantics, concurrency fairness beyond priority-then-FIFO, PR metadata conventions beyond explicit `wi_…` ids. See the open decisions in [`docs/architecture/GENERATION-2.md`](docs/architecture/GENERATION-2.md).
 
 MIT

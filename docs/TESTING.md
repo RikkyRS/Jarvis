@@ -84,5 +84,9 @@ The six requirements the project is judged against come first.
 | R-RECOVERY-02    | A tampered audit log is detected after restart                                                                                | recovery    |
 | R-E2E-02         | The whole lifecycle (questions, plan, approval, run, review, delivery, reopen) is drivable from the human CLI                 | e2e         |
 | R-E2E-01         | A full flow completes with evidence and reopens with preserved context                                                        | e2e         |
+| R-INTERP-01      | LLM interpretation of a report is advisory: it never changes the report, its hash or promotability                            | integration |
+| R-INTERP-02      | Interpretation drops unknown paths, caps severity below HIGH and degrades to UNAVAILABLE on bad output                        | adversarial |
+| R-INTERP-03      | Hostile commit text is data, and interpretation spends budget only through the AI runtime                                     | adversarial |
+| R-ADAPTER-01     | The Ollama adapter works over a real HTTP connection and fails explicitly on errors                                           | integration |
 
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.
