@@ -120,7 +120,13 @@ export class WorkflowRuntime {
         );
       }
     }
-    return this.store.transitionRun(runId, "AWAITING_REVIEW", actor);
+    const review = this.store.transitionRun(runId, "AWAITING_REVIEW", actor);
+    try {
+      this.onChange?.(review.workItemId);
+    } catch {
+      // Journal failures never block the transition.
+    }
+    return review;
   }
 
   /** Completion requires a human decision after review; the runtime never self-completes. */

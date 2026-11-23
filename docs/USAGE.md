@@ -35,7 +35,7 @@ node dist/cli/main.js scan && node dist/cli/main.js know "test"
 claude mcp add jarvis -- node /absolute/path/to/Jarvis/dist/cli/main.js mcp --client claude
 ```
 
-Run it from (or point `cwd` at) the project you want JARVIS to govern. Tools: `jarvis_status`,
+Run it from (or point `cwd` at) the project you want JARVIS to govern. On Windows use a native path such as `C:/Users/you/Jarvis/dist/cli/main.js` in the config; a Git Bash style `/c/Users/...` path makes the server fail to start. In Claude Code the tools appear as `mcp__jarvis__jarvis_*`. Tools: `jarvis_status`,
 `jarvis_list_work_items`, `jarvis_get_work_item`, `jarvis_request_operation`, `jarvis_resume_operation`,
 `jarvis_pending_approvals`, `jarvis_budget_status`, `jarvis_project_knowledge`.
 
@@ -60,6 +60,24 @@ Typical loop for a high-risk operation (commit, push, merge, worktree removal):
 
 `trustedProject` defaults to `false`: tests and scripts are blocked unless a container runner is configured.
 `requireApproval` can only make things stricter. Add `.jarvis/` to `.gitignore`.
+
+## Lifecycle from the human CLI
+
+```bash
+jarvis work create "Fix totals" --objective "..." --accept "..."
+jarvis plan questions <wi> ; jarvis plan answer ... ; jarvis plan submit ... ; jarvis plan approve <wi>
+jarvis mission create --work-item <wi>
+jarvis budget grant <mission> EXECUTION <tokens> --reason "plan v1"
+jarvis run create <wi> && jarvis run ready <run>
+jarvis run start <run> <mission>      # you start execution; needs approved plan + enough budget
+# ... the agent works through MCP; steps are proven with jarvis_mark_step (or: jarvis plan done) ...
+jarvis plan progress <wi>             # what is proven, and anything outside the plan
+jarvis run submit <run>               # all steps proven, no change outside the plan
+jarvis run complete <run>             # your review decision
+jarvis work status <wi> DELIVERED     # later: REOPENED, with feedback kept
+```
+
+Changes and executions are only accepted for a RUNNING run of the same Work Item; reads work while the run is alive.
 
 ## Planning: get it right in one pass
 

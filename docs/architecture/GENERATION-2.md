@@ -557,5 +557,9 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
 - **Retention** (`src/persistence/retention.ts`): archives operational payloads keeping hashes; audit, ledgers, plans and
   live runs are untouched.
 - **Operations**: `approvals --watch`, `report` (markdown change report).
+- **Run guard**: changes and executions are accepted only for a RUNNING run of the same Work Item (closes a bypass of the plan gate).
+- **Plan step tracking**: steps are marked done only with successful operations of a declared type inside declared paths; review needs every step proven; edits outside the approved plan force an amended, human-approved plan.
+- **Control files**: `.jarvis/` is not writable through the gateway (an agent could otherwise grant itself trust).
+- **Pilot** (23/11): a real Claude Code session, with built-in tools disabled, completed edit, test, step marking and was correctly refused on `.jarvis/config.json` and held at the commit approval gate (cost under US$0.01).
 - Closed from "Still open": retention of operational data; automatic budget estimation. Still open: archive format beyond
   in-place hashing.
