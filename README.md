@@ -3,6 +3,24 @@
 Deterministic, provider-agnostic engineering runtime for AI-assisted development.
 AI clients may reason and request; **authorization and execution stay deterministic**.
 
+## In 30 seconds
+
+AI coding assistants are useful and unpredictable. JARVIS sits between you and them: **the AI proposes, the code authorizes.**
+
+- **Risk policy:** LOW and MEDIUM operations run; HIGH needs a human approval; CRITICAL is blocked. Config can only tighten it.
+- **Single-use approvals:** bound to one exact operation, fingerprinted, expiring. Only a human can grant them.
+- **Tamper-evident audit:** append-only log with a hash chain.
+- **Isolation:** untrusted project code runs only in a locked-down container (no network, read-only root). Without one, the gateway blocks it.
+- **Verified:** 210 tests, and CI runs the isolation against a real Docker daemon, not a mock.
+
+Built with TypeScript, Node.js, SQLite, Zod, Vitest and GitHub Actions. MIT. Created by Henrique Otta Rodrigues ([LinkedIn](https://www.linkedin.com/in/henrique-otta-rodrigues)).
+
+```bash
+npm install
+npm run ci   # typecheck, lint, tests, build
+bash scripts/demo.sh   # reproducible CLI tour
+```
+
 Source of truth for the design: [`docs/architecture/GENERATION-2.md`](docs/architecture/GENERATION-2.md).
 The Generation 1 harness (0.6.x) is preserved at git tag `legacy-0.6.0-gen1` and is not compatible.
 
