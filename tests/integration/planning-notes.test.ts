@@ -8,7 +8,7 @@ import { run, type Io } from "../../src/cli/index.js";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { applyRetention } from "../../src/persistence/retention.js";
 import { DomainError } from "../../src/persistence/repositories.js";
-import { estimatePlan, PlanSchema, type PlanInput } from "../../src/planning/index.js";
+import { CATEGORIES, estimatePlan, PlanSchema, type PlanInput } from "../../src/planning/index.js";
 import {
   agent,
   cleanup,
@@ -128,7 +128,7 @@ describe("clarification: find the unknowns before implementing", () => {
         "deployment",
       ]),
     );
-    expect(cats[0]).toBe("purpose"); // the first thing asked is why this is needed
+    expect(CATEGORIES[0]?.id).toBe("purpose"); // the checklist opens with why this is needed
     expect(questions.find((q) => q.category === "purpose")?.impact).toBe("MATERIAL");
     expect(cats).not.toContain("acceptance"); // already stated on the Work Item
     expect(questions.filter((q) => q.impact === "MATERIAL").length).toBeGreaterThanOrEqual(5);

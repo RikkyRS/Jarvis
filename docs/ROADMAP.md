@@ -21,11 +21,11 @@ O [Superpowers](https://github.com/obra/superpowers) (obra) é uma metodologia e
 | Debugging sistemático: causa raiz antes de corrigir                                       | Já existe (diagnóstico obrigatório em bug). **Novo:** 3 correções falhas congelam o código até um plano emendado aprovado (`R-QUALITY-06`) |
 | Writing-plans: passos com resultado checável, sem lacuna                                  | Já existe no planejamento (verificação por passo, riscos, rollback)                                                                        |
 | Executing-plans / "Rulings": decidir e registrar, não travar                              | Já existe (diário de decisões e ledger de desvio)                                                                                          |
-| Revisão por tarefa (spec + qualidade) e revisão final | **Feito:** `jarvis review blind --step <id>` revisa um passo só (`R-METHOD-07`); a revisão do conjunto continua no fim |
-| Receiving-code-review: verificar antes de implementar | **Feito:** skill `/jarvis:receive` (verificar no código, discordar com razão técnica, um item por vez) |
-| Finishing-a-development-branch: opções fechadas (PR, manter, descartar) | **Feito:** skill `/jarvis:finish` (prova com evidência fresca e saídas fechadas; o humano publica PR e descarta) |
-| Brainstorming: perguntar o **porquê** primeiro | **Feito:** a primeira pergunta do planejamento é `purpose` (por que e para quem), de impacto MATERIAL |
-| Hook de sessão que injeta o método (`using-superpowers`) | **Feito:** `plugin/hooks/hooks.json` + `jarvis context` (`R-CONTEXT-01`, `R-PLUGIN-02`); silencioso fora de projeto JARVIS |
+| Revisão por tarefa (spec + qualidade) e revisão final                                     | **Feito:** `jarvis review blind --step <id>` revisa um passo só (`R-METHOD-07`); a revisão do conjunto continua no fim                     |
+| Receiving-code-review: verificar antes de implementar                                     | **Feito:** skill `/jarvis:receive` (verificar no código, discordar com razão técnica, um item por vez)                                     |
+| Finishing-a-development-branch: opções fechadas (PR, manter, descartar)                   | **Feito:** skill `/jarvis:finish` (prova com evidência fresca e saídas fechadas; o humano publica PR e descarta)                           |
+| Brainstorming: perguntar o **porquê** primeiro                                            | **Feito:** a primeira pergunta do planejamento é `purpose` (por que e para quem), de impacto MATERIAL                                      |
+| Hook de sessão que injeta o método (`using-superpowers`)                                  | **Feito:** `plugin/hooks/hooks.json` + `jarvis context` (`R-CONTEXT-01`, `R-PLUGIN-02`); silencioso fora de projeto JARVIS                 |
 | Diagnosing-superpowers: analisar sessões passadas (retrabalho, custo, aderência ao plano) | Falta; casa com o item 8 abaixo (benchmark)                                                                                                |
 
 Ainda aberto do Superpowers: TDD também para feature (hoje só em bug), revisão automática a cada passo marcado, e análise de sessões passadas (retrabalho, custo, aderência ao plano).

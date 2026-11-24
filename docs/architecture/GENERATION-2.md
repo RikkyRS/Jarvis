@@ -584,4 +584,3 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
   plan can be approved. Extends `R-PLAN-01`.
 - Plugin skills `receive` (verify review feedback before implementing) and `finish` (prove with fresh evidence, closed list of
   exits, human publishes) join the original five.
-
