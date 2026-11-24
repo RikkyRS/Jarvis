@@ -164,6 +164,48 @@ describe("bug fixes are proven by a test that failed first", () => {
   });
 });
 
+describe("fix loop breaker", () => {
+  /** Reproduce the bug, then fail `n` fix attempts in a row (edit the code, run a failing test). */
+  async function failedAttempts(runId: string, n: number) {
+    await edit(runId, "app.test.js");
+    await test(runId, FAIL); // the reproduction is not a failed fix attempt
+    for (let i = 0; i < n; i++) {
+      expect((await edit(runId, "app.js")).outcome).toBe("SUCCEEDED");
+      await test(runId, FAIL);
+    }
+  }
+
+  it("[R-QUALITY-06] after three failed fix attempts the code is frozen, but tests and diagnosis stay open", async () => {
+    const { run } = runningWork({}, bugPlan());
+    await failedAttempts(run.id, 3);
+    const stopped = await edit(run.id, "app.js");
+    expect(stopped).toMatchObject({ outcome: "DENIED", reason: "FIX_LOOP_STOP:3" });
+    expect((await edit(run.id, "app.test.js")).outcome).toBe("SUCCEEDED"); // a better test is allowed
+    expect((await test(run.id, FAIL)).outcome).toBe("FAILED"); // and so is investigating
+  });
+
+  it("[R-QUALITY-06] two failures, or a green run in between, do not stop anything", async () => {
+    const { run } = runningWork({}, bugPlan());
+    await failedAttempts(run.id, 2);
+    expect((await edit(run.id, "app.js")).outcome).toBe("SUCCEEDED");
+    await test(run.id, PASS); // progress resets the count
+    await edit(run.id, "app.js");
+    await test(run.id, FAIL);
+    await edit(run.id, "app.js");
+    await test(run.id, FAIL);
+    expect((await edit(run.id, "app.js")).outcome).toBe("SUCCEEDED");
+  });
+
+  it("[R-QUALITY-06] only a human-approved amended plan releases the code; a draft does not", async () => {
+    const { item, run } = runningWork({}, bugPlan());
+    await failedAttempts(run.id, 3);
+    jarvis!.planning.submitPlan(item.id, bugPlan(), agent); // the agent proposes a new approach
+    expect(await edit(run.id, "app.js")).toMatchObject({ reason: "FIX_LOOP_STOP:3" });
+    jarvis!.planning.approvePlan(item.id, human); // the human decides to try again
+    expect((await edit(run.id, "app.js")).outcome).toBe("SUCCEEDED");
+  });
+});
+
 describe("mandatory checks", () => {
   const featurePlan = (): PlanInput => {
     const p = bugPlan();

@@ -563,3 +563,24 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
 - **Pilot** (23/11): a real Claude Code session, with built-in tools disabled, completed edit, test, step marking and was correctly refused on `.jarvis/config.json` and held at the commit approval gate (cost under US$0.01).
 - Closed from "Still open": retention of operational data; automatic budget estimation. Still open: archive format beyond
   in-place hashing.
+
+### Update — 2026-11-24 (fix loop breaker)
+
+- Inspired by Superpowers' systematic-debugging ("three failed fixes: question the cause, not the patch").
+- A failed fix attempt is a TEST_RUN that FAILED right after a non-test FILE_EDIT, read from the execution ledger. A passing
+  test run resets the count. At 3 in a row, edits to non-test files are denied with `FIX_LOOP_STOP:3`; test edits and test runs
+  stay open so the cause can be investigated.
+- Only a newer **human-approved** plan releases it (the count restarts from that approval), so the agent cannot talk its way
+  out. The limit is a constant (`MAX_FAILED_FIX_ATTEMPTS`), not configuration, so a project cannot weaken it. Requirement: `R-QUALITY-06`.
+
+### Update — 2026-11-24 (Superpowers: session context, step review, why-first, two skills)
+
+- `jarvis context`: short brief for an AI session (autonomy, pending approvals, open Work Items with plan state, the method in
+  one line). Read-only. Outside a folder with `.jarvis/` it prints nothing and creates nothing, so the plugin's SessionStart
+  hook (`plugin/hooks/hooks.json`) is safe in every project. Requirements `R-CONTEXT-01`, `R-PLUGIN-02`.
+- `jarvis review blind --step <id>`: the reviewer sees one plan step, the files it declared and their diff, without the
+  acceptance criteria (those belong to the whole delivery). A step with no declared paths has nothing to review. `R-METHOD-07`.
+- Planning checklist now opens with `purpose` (why is this needed, who benefits), MATERIAL, so a human must answer it before a
+  plan can be approved. Extends `R-PLAN-01`.
+- Plugin skills `receive` (verify review feedback before implementing) and `finish` (prove with fresh evidence, closed list of
+  exits, human publishes) join the original five.

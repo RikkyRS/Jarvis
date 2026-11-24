@@ -1,14 +1,16 @@
 # Plugin JARVIS para Claude Code
 
-Cinco comandos de método que rodam **em cima** do runtime do JARVIS. O agente propõe; o JARVIS autoriza, executa e audita; o humano aprova o que é arriscado.
+Sete comandos de método que rodam **em cima** do runtime do JARVIS. O agente propõe; o JARVIS autoriza, executa e audita; o humano aprova o que é arriscado.
 
-| Comando          | Para quê                                                                     |
-| ---------------- | ---------------------------------------------------------------------------- |
-| `/jarvis:plan`   | Planejar: Certeza / Proposta / Dúvida, diagnóstico de bug, matriz de impacto |
-| `/jarvis:dev`    | Executar o plano aprovado, sempre pelo JARVIS                                |
-| `/jarvis:review` | Revisão cega: só plano aprovado e código                                     |
-| `/jarvis:cycle`  | Rascunho de commit e de PR, a partir do plano                                |
-| `/jarvis:toc`    | Mapear o repositório e achar documentação envelhecida                        |
+| Comando           | Para quê                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `/jarvis:plan`    | Planejar: Certeza / Proposta / Dúvida, diagnóstico de bug, matriz de impacto        |
+| `/jarvis:dev`     | Executar o plano aprovado, sempre pelo JARVIS                                       |
+| `/jarvis:review`  | Revisão cega: só plano aprovado e código                                            |
+| `/jarvis:cycle`   | Rascunho de commit e de PR, a partir do plano                                       |
+| `/jarvis:toc`     | Mapear o repositório e achar documentação envelhecida                               |
+| `/jarvis:receive` | Receber revisão: verificar cada item no código antes de implementar                 |
+| `/jarvis:finish`  | Fechar o trabalho: provar com evidência fresca e deixar o humano escolher o destino |
 
 ## Instalar
 
@@ -19,6 +21,10 @@ Cinco comandos de método que rodam **em cima** do runtime do JARVIS. O agente p
    ```
    No Windows use caminho nativo (`C:/Users/voce/Jarvis/dist/cli/main.js`).
 3. Habilite o plugin apontando para esta pasta (`plugin/`).
+
+## Hook de sessão
+
+`hooks/hooks.json` roda `jarvis context` ao iniciar, limpar ou compactar a sessão e entrega ao agente o estado do JARVIS (autonomia, aprovações esperando, Work Items e planos) e as regras do método. Em pasta sem `.jarvis/` ele não imprime nada e **não cria estado**.
 
 ## Privacidade
 

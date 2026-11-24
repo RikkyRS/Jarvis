@@ -31,9 +31,11 @@ import {
 import { autonomyFingerprint } from "../autonomy/index.js";
 import { ContractStore } from "../contract/index.js";
 import {
+  failedFixAttempts,
   hasFailingTest,
   hasPassingTestAfterFix,
   isTestPath,
+  MAX_FAILED_FIX_ATTEMPTS,
   missingChecks,
 } from "../method/gates.js";
 import { hardenDataDir } from "./privacy.js";
@@ -259,6 +261,18 @@ export class Jarvis {
         !hasFailingTest(this.db, run.id)
       )
         return "BUGFIX_NEEDS_FAILING_TEST";
+    }
+    // Fix loop: after repeated failed attempts the code stays untouched until the human approves an amended plan.
+    if (op.type === "FILE_EDIT" && op.target && !isTestPath(op.target)) {
+      const approved = this.db
+        .prepare(
+          "SELECT approved_at FROM plans WHERE work_item_id = ? AND status = 'APPROVED' ORDER BY version DESC LIMIT 1",
+        )
+        .get(op.workItemId) as { approved_at: string | null } | undefined;
+      if (
+        failedFixAttempts(this.db, run.id, approved?.approved_at ?? null) >= MAX_FAILED_FIX_ATTEMPTS
+      )
+        return "FIX_LOOP_STOP:" + MAX_FAILED_FIX_ATTEMPTS;
     }
     // Nothing is committed while a mandatory check is red or stale.
     if (op.type === "GIT_COMMIT" && this.config.checks.length > 0) {

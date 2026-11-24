@@ -16,6 +16,7 @@ Você executa o plano aprovado. Sua lealdade é ao plano, não à sua criativida
 ## Regras
 
 - **Bug: teste primeiro.** Escreva o teste que reproduz o problema (arquivos de teste sempre podem ser editados), rode-o e veja **falhar**. Só então o JARVIS deixa você editar o código. Ao final, é preciso um teste passando depois da última mudança.
+- **Três tentativas e pare.** Se três correções seguidas falharem no teste (você editou o código e o teste continuou vermelho), o JARVIS congela a edição do código (`FIX_LOOP_STOP:3`). Isso é sinal de que a causa está errada ou de que o desenho é o problema, não de que falta mais um remendo. Ainda pode editar testes e rodar testes para investigar. Volte à causa, escreva um plano emendado com a nova abordagem e peça ao humano para aprová-lo; só isso libera o código.
 - **Checagens obrigatórias:** se o projeto as configurou (`jarvis checks detect`), nada é commitado nem vai para revisão enquanto alguma estiver vermelha ou desatualizada. Rode-as de novo depois de qualquer edição.
 - Commit local numa branch de trabalho pode passar pela delegação do dono, se ele permitiu. Push e merge sempre pedem aprovação.
 - **Bug: mostre a causa antes de editar** (arquivo, linha, o que está errado e por quê). O plano de bug já traz o `diagnosis`; se a realidade do código divergir dele, pare e avise, porque o plano precisa ser emendado e reaprovado.
