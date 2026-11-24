@@ -10,6 +10,26 @@ Ideias para deixar o JARVIS ainda mais completo como parceiro de programação, 
 - Revisor cego consultivo, rascunhos de commit e PR, relatório de deriva da documentação.
 - Plugin com `/jarvis:plan`, `/jarvis:dev`, `/jarvis:review`, `/jarvis:cycle`, `/jarvis:toc`.
 
+## Ideias do Superpowers (pesquisa de 24/11)
+
+O [Superpowers](https://github.com/obra/superpowers) (obra) é uma metodologia em skills para agentes. A diferença para o JARVIS: lá as regras são **texto que o agente escolhe seguir**; aqui são **travas que o runtime faz cumprir** com base no registro de execuções. Por isso o critério foi: só entra o que dá para provar por evidência.
+
+| Ideia do Superpowers | Situação no JARVIS |
+| --- | --- |
+| TDD: "sem código de produção sem teste falhando antes" | Já existe para bug (`R-QUALITY-01`). Estender a feature é opcional e ainda aberto |
+| Verification-before-completion: "sem alegar sucesso sem evidência fresca" | Já existe: checagens obrigatórias e teste verde **depois** da última mudança (`R-QUALITY-01/02`) |
+| Debugging sistemático: causa raiz antes de corrigir | Já existe (diagnóstico obrigatório em bug). **Novo:** 3 correções falhas congelam o código até um plano emendado aprovado (`R-QUALITY-06`) |
+| Writing-plans: passos com resultado checável, sem lacuna | Já existe no planejamento (verificação por passo, riscos, rollback) |
+| Executing-plans / "Rulings": decidir e registrar, não travar | Já existe (diário de decisões e ledger de desvio) |
+| Revisão por tarefa (spec + qualidade) e revisão final | Parcial: revisão cega consultiva só no fim. Falta revisão por passo |
+| Receiving-code-review: verificar antes de implementar | Só texto de skill; ainda não há skill própria |
+| Finishing-a-development-branch: opções fechadas (PR, manter, descartar) | Falta; hoje o humano decide manualmente |
+| Brainstorming: perguntar o **porquê** primeiro | Parcial: o checklist pergunta escopo, dados, segurança; falta o "por quê" como pergunta de abertura |
+| Hook de sessão que injeta o método (`using-superpowers`) | Falta: o plugin não tem hook; o Gabriel usa um (`inject-context.sh`) |
+| Diagnosing-superpowers: analisar sessões passadas (retrabalho, custo, aderência ao plano) | Falta; casa com o item 8 abaixo (benchmark) |
+
+Próximas da lista, em ordem: hook de sessão com o estado do JARVIS, revisão por passo, "por quê" na abertura do planejamento.
+
 ## Próximos passos, por valor
 
 | #   | Ideia                                                                                                                                                          | Por que importa                                                                                                               | Esforço |

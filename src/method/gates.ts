@@ -83,3 +83,35 @@ export function missingChecks(
     )
     .map((c) => c.name);
 }
+
+/** After this many failed fix attempts in a row, more patching is stopped (Superpowers: systematic-debugging). */
+export const MAX_FAILED_FIX_ATTEMPTS = 3;
+
+type TargetRow = ExecRow & { target: string };
+
+/**
+ * Failed fix attempts in a row: a test run that FAILED right after code (not a test file) was edited.
+ * A passing test run resets the count, and so does a newly approved plan (`since` = its approval time),
+ * because an amended plan is the human's decision to try a different way. Read from the execution
+ * ledger, never from an agent's claim.
+ */
+export function failedFixAttempts(db: DatabaseSync, runId: string, since: string | null): number {
+  const all = db
+    .prepare(
+      "SELECT type, target, outcome, evidence, finished_at FROM executions WHERE workflow_run_id = ? ORDER BY finished_at, rowid",
+    )
+    .all(runId) as TargetRow[];
+  let streak = 0;
+  let codeEdited = false;
+  for (const r of all) {
+    if (since !== null && r.finished_at <= since) continue;
+    if (r.outcome === "SUCCEEDED" && r.type === "FILE_EDIT" && !isTestPath(r.target)) {
+      codeEdited = true;
+    } else if (r.type === "TEST_RUN" && (r.outcome === "FAILED" || r.outcome === "SUCCEEDED")) {
+      if (r.outcome === "SUCCEEDED") streak = 0;
+      else if (codeEdited) streak += 1;
+      codeEdited = false;
+    }
+  }
+  return streak;
+}

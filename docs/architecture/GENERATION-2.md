@@ -563,3 +563,12 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
 - **Pilot** (23/11): a real Claude Code session, with built-in tools disabled, completed edit, test, step marking and was correctly refused on `.jarvis/config.json` and held at the commit approval gate (cost under US$0.01).
 - Closed from "Still open": retention of operational data; automatic budget estimation. Still open: archive format beyond
   in-place hashing.
+
+### Update — 2026-11-24 (fix loop breaker)
+
+- Inspired by Superpowers' systematic-debugging ("three failed fixes: question the cause, not the patch").
+- A failed fix attempt is a TEST_RUN that FAILED right after a non-test FILE_EDIT, read from the execution ledger. A passing
+  test run resets the count. At 3 in a row, edits to non-test files are denied with `FIX_LOOP_STOP:3`; test edits and test runs
+  stay open so the cause can be investigated.
+- Only a newer **human-approved** plan releases it (the count restarts from that approval), so the agent cannot talk its way
+  out. The limit is a constant (`MAX_FAILED_FIX_ATTEMPTS`), not configuration, so a project cannot weaken it. Requirement: `R-QUALITY-06`.

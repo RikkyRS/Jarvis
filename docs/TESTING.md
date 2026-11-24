@@ -115,5 +115,6 @@ The six requirements the project is judged against come first.
 | R-QUALITY-03 | Once a step declares coverage, every acceptance criterion needs a step; otherwise only a warning | unit |
 | R-QUALITY-04 | A local commit on a work branch may stand on the delegation; on a protected branch, without permission, or for a push the human is needed | adversarial |
 | R-QUALITY-05 | Check detection suggests the right checks for Node, Python and Java projects from their files | unit |
+| R-QUALITY-06 | After three failed fix attempts in a row the code is frozen until the human approves an amended plan; tests and investigation stay open | adversarial |
 
 Known gaps are tracked in [`docs/architecture/GENERATION-2.md`](architecture/GENERATION-2.md) under open decisions.
