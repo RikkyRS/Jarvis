@@ -49,7 +49,14 @@ describe("the whole lifecycle is drivable by a human from the CLI", () => {
     )[0]!;
 
     await step(["plan", "questions", wi]);
-    for (const category of ["scope", "data", "security", "compatibility", "dependencies"]) {
+    for (const category of [
+      "purpose",
+      "scope",
+      "data",
+      "security",
+      "compatibility",
+      "dependencies",
+    ]) {
       await step(["plan", "answer", wi, category, "sem", "impacto"]);
     }
     await step(["plan", "assume", wi]);

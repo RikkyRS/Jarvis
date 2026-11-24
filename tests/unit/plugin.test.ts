@@ -12,8 +12,8 @@ const read = (name: string) =>
     .join(String.fromCharCode(10));
 
 describe("Claude Code plugin", () => {
-  it("[R-PLUGIN-01] declares five skills, each with a name and a description", () => {
-    expect(skills.sort()).toEqual(["cycle", "dev", "plan", "review", "toc"]);
+  it("[R-PLUGIN-01] declares seven skills, each with a name and a description", () => {
+    expect(skills.sort()).toEqual(["cycle", "dev", "finish", "plan", "receive", "review", "toc"]);
     for (const s of skills) {
       const text = read(s);
       expect(text).toMatch(new RegExp(`^---\\nname: ${s}\\ndescription: .{20,}\\n---`));
@@ -45,7 +45,7 @@ describe("Claude Code plugin", () => {
     const help = lines.join("\n");
     for (const s of skills) {
       for (const m of read(s).matchAll(
-        /`?jarvis ((?:review blind|cycle commit|cycle pr|docs-drift|plan approve|run complete|approvals|approve|scan|know)\b)/g,
+        /`?jarvis ((?:review blind|cycle commit|cycle pr|docs-drift|plan approve|run complete|run submit|checks run|approvals|approve|scan|know)\b)/g,
       )) {
         expect(help.includes(m[1]!.split(" ")[0]!), `${s}: ${m[1]}`).toBe(true);
       }

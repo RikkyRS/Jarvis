@@ -165,6 +165,32 @@ export type BlindReviewContext = {
   workItemId?: string;
 };
 
+/**
+ * Narrows a review to ONE plan step: only that step, only the files it declared, only their diff,
+ * and no acceptance criteria (those belong to the whole delivery). Returns null when the step does
+ * not exist or declares no paths, because there would be nothing to look at. Catching a deviation
+ * per step is cheaper than finding it all at the end.
+ */
+export function scopeToStep(input: BlindReviewInput, stepId: string): BlindReviewInput | null {
+  const step = input.plan.steps.find((s) => s.id === stepId);
+  if (!step || step.paths.length === 0) return null;
+  const paths = input.changedPaths.filter((c) => step.paths.some((d) => covers(d, c)));
+  const keep = new Set(paths.map(norm));
+  const blocks = input.diff.split(/^(?=diff --git )/m);
+  const diff = blocks
+    .filter((b) => {
+      const m = /^diff --git a\/(.+?) b\//.exec(b);
+      return m ? keep.has(norm(m[1]!)) : false;
+    })
+    .join("");
+  return {
+    plan: { ...input.plan, steps: [step] },
+    acceptanceCriteria: [],
+    changedPaths: paths,
+    diff,
+  };
+}
+
 export async function blindReview(
   input: BlindReviewInput,
   ctx: BlindReviewContext,

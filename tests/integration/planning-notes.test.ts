@@ -118,6 +118,7 @@ describe("clarification: find the unknowns before implementing", () => {
     const cats = questions.map((q) => q.category);
     expect(cats).toEqual(
       expect.arrayContaining([
+        "purpose",
         "scope",
         "data",
         "security",
@@ -127,6 +128,8 @@ describe("clarification: find the unknowns before implementing", () => {
         "deployment",
       ]),
     );
+    expect(cats[0]).toBe("purpose"); // the first thing asked is why this is needed
+    expect(questions.find((q) => q.category === "purpose")?.impact).toBe("MATERIAL");
     expect(cats).not.toContain("acceptance"); // already stated on the Work Item
     expect(questions.filter((q) => q.impact === "MATERIAL").length).toBeGreaterThanOrEqual(5);
 
@@ -530,7 +533,7 @@ describe("adapters for planning", () => {
     expect(await run(["plan", "questions", item.id], io, root, env())).toBe(0);
     expect(io.lines.join("\n")).toContain("(MATERIAL) scope");
 
-    for (const cat of ["scope", "data", "security", "compatibility", "dependencies"]) {
+    for (const cat of ["purpose", "scope", "data", "security", "compatibility", "dependencies"]) {
       expect(
         await run(["plan", "answer", item.id, cat, "ok", "assim"], memoryIo(), root, env()),
       ).toBe(0);

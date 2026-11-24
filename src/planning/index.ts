@@ -39,6 +39,12 @@ export type Category = {
 
 export const CATEGORIES: readonly Category[] = [
   {
+    id: "purpose",
+    impact: "MATERIAL",
+    question:
+      "Por que isso é necessário agora e que problema real resolve? (Quem se beneficia e o que muda para essa pessoa?)",
+  },
+  {
     id: "scope",
     impact: "MATERIAL",
     question: "Qual é o limite do escopo? O que explicitamente NÃO faz parte desta tarefa?",

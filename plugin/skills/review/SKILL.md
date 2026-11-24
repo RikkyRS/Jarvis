@@ -19,6 +19,8 @@ Peça ao usuário para executar (ou execute, se ele autorizar):
 jarvis review blind <workItem> --base <ref> --head <ref> --mission <id>
 ```
 
+Para revisar **um passo só** (mais barato, e pega o desvio cedo), acrescente `--step <id>`: o JARVIS mostra ao revisor apenas aquele passo, os arquivos que ele declarou e o diff deles.
+
 O JARVIS faz duas verificações: uma **determinística** (passos cujos caminhos nunca foram alterados) e uma **semântica** por modelo. O veredito é calculado pelos achados, e achado que cita item inexistente do plano ou arquivo que não mudou é descartado.
 
 ## Como apresentar

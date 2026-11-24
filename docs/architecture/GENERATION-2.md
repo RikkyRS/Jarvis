@@ -572,3 +572,16 @@ The requirement-to-test matrix lives in [`../TESTING.md`](../TESTING.md) and is 
   stay open so the cause can be investigated.
 - Only a newer **human-approved** plan releases it (the count restarts from that approval), so the agent cannot talk its way
   out. The limit is a constant (`MAX_FAILED_FIX_ATTEMPTS`), not configuration, so a project cannot weaken it. Requirement: `R-QUALITY-06`.
+
+### Update — 2026-11-24 (Superpowers: session context, step review, why-first, two skills)
+
+- `jarvis context`: short brief for an AI session (autonomy, pending approvals, open Work Items with plan state, the method in
+  one line). Read-only. Outside a folder with `.jarvis/` it prints nothing and creates nothing, so the plugin's SessionStart
+  hook (`plugin/hooks/hooks.json`) is safe in every project. Requirements `R-CONTEXT-01`, `R-PLUGIN-02`.
+- `jarvis review blind --step <id>`: the reviewer sees one plan step, the files it declared and their diff, without the
+  acceptance criteria (those belong to the whole delivery). A step with no declared paths has nothing to review. `R-METHOD-07`.
+- Planning checklist now opens with `purpose` (why is this needed, who benefits), MATERIAL, so a human must answer it before a
+  plan can be approved. Extends `R-PLAN-01`.
+- Plugin skills `receive` (verify review feedback before implementing) and `finish` (prove with fresh evidence, closed list of
+  exits, human publishes) join the original five.
+

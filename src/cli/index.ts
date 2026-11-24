@@ -11,7 +11,7 @@ import { detectChecks } from "../method/detect.js";
 import { missingChecks } from "../method/gates.js";
 import { commitMessage, prDescription, type Lang } from "../cycle/artifacts.js";
 import { checkDocumentDrift, renderDrift } from "../knowledge/drift.js";
-import { blindReview, collectDiff, renderBlindReview } from "../review/blind.js";
+import { blindReview, collectDiff, renderBlindReview, scopeToStep } from "../review/blind.js";
 import { Jarvis } from "../app/jarvis.js";
 import { privacyReport } from "../app/privacy.js";
 import { BudgetPhaseSchema, type Principal } from "../domain/contracts.js";
@@ -48,6 +48,7 @@ export const defaultIo: Io = {
 export const HELP = `jarvis — deterministic engineering runtime
 
   status                          project, work items, approvals, audit integrity
+  context                         short brief for an AI session: autonomy, open work, plan state (silent when the project has no JARVIS state)
   work create <title> --objective <text> [--accept <criterion>]...
   work list
   work show <workItem>            requirements, decisions, runs
@@ -80,7 +81,7 @@ export const HELP = `jarvis — deterministic engineering runtime
   audit verify
   inbox add <sender> <text...> [--conversation <id>]   put a forwarded client message in the inbox
   inbox process --mission <id> [--phase PREPARATION|EXECUTION]   classify new messages into proposals and check them against the contract
-  review blind <workItem> --base <ref> --head <ref> --mission <id>   blind review: approved plan + code only, advisory
+  review blind <workItem> --base <ref> --head <ref> --mission <id> [--step <id>]   blind review: approved plan + code only, advisory; --step reviews one plan step
   cycle commit|pr <workItem> --base <ref> --head <ref> [--lang pt|en]   commit message / PR description drafted from the approved plan
   docs-drift [file...]            which claims in README/CLAUDE.md no longer match the repository
   autonomy status --mission <id>  what JARVIS would do on its own right now, and why not when it would not
@@ -159,6 +160,9 @@ export async function run(
     return 0;
   }
 
+  // A session hook calls this in any folder: it must never create state where JARVIS is not in use.
+  if (command === "context" && !existsSync(join(root, ".jarvis"))) return 0;
+
   const human = humanPrincipal(env);
   const jarvis = Jarvis.open({
     root,
@@ -171,6 +175,26 @@ export async function run(
       case "status":
         io.out(JSON.stringify(jarvis.status(), null, 2));
         return 0;
+
+      case "context": {
+        const open = jarvis.store
+          .listWorkItems(jarvis.project.id)
+          .filter((i) => i.status !== "CLOSED" && i.status !== "DELIVERED");
+        const pending = (jarvis.status() as { pendingApprovals?: number }).pendingApprovals ?? 0;
+        io.out(`JARVIS ativo neste projeto. Autonomia: ${jarvis.autonomy.level}.`);
+        io.out(`Aprovações esperando o humano: ${pending}.`);
+        if (open.length === 0) io.out("Nenhum Work Item aberto.");
+        for (const i of open.slice(0, 8)) {
+          const plan = jarvis.planning.currentPlan(i.id);
+          io.out(
+            `- ${i.id} [${i.status}] ${i.title} | plano: ${plan ? `v${plan.version} ${plan.status}` : "sem plano"}`,
+          );
+        }
+        io.out(
+          "Método: tudo pelo JARVIS (jarvis_request_operation); você nunca aprova; bug começa por teste que falha; três correções falhas congelam o código; sem plano aprovado nada executa.",
+        );
+        return 0;
+      }
 
       case "work": {
         if (sub === "list") {
@@ -464,6 +488,7 @@ export async function run(
             base: { type: "string" },
             head: { type: "string" },
             mission: { type: "string" },
+            step: { type: "string" },
           },
         });
         const item = wi ? jarvis.store.getWorkItem(wi) : undefined;
@@ -490,21 +515,24 @@ export async function run(
           values.base,
           values.head,
         );
-        const result = await blindReview(
-          {
-            plan: stored.plan,
-            acceptanceCriteria: item.acceptanceCriteria,
-            changedPaths: paths,
-            diff,
-          },
-          {
-            runtime: jarvis.ai,
-            missionId: values.mission,
-            phase: "EXECUTION",
-            agent: "blind-reviewer",
-            workItemId: wi!,
-          },
-        );
+        const whole = {
+          plan: stored.plan,
+          acceptanceCriteria: item.acceptanceCriteria,
+          changedPaths: paths,
+          diff,
+        };
+        const scoped = values.step ? scopeToStep(whole, values.step) : whole;
+        if (!scoped) {
+          io.err(`Step "${values.step}" does not exist or declares no paths to review.`);
+          return 1;
+        }
+        const result = await blindReview(scoped, {
+          runtime: jarvis.ai,
+          missionId: values.mission,
+          phase: "EXECUTION",
+          agent: "blind-reviewer",
+          workItemId: wi!,
+        });
         io.out(renderBlindReview(result));
         return result.verdict === "REPROVADO" ? 1 : 0;
       }
